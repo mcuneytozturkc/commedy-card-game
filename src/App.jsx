@@ -17,7 +17,17 @@ function markSplashSeen() {
 
 export default function App() {
   const [splash, setSplash] = useState(() => !splashSeen())
-  const [view, setView] = useState({ name: 'home' })
+  // QR ile gelen oyuncu: ?logo=KOD → doğrudan Logo Bilmece katılma ekranı
+  const [view, setView] = useState(() => {
+    try {
+      const code = new URLSearchParams(window.location.search).get('logo')
+      if (code && /^[A-Za-z0-9]{6}$/.test(code)) {
+        window.history.replaceState(null, '', window.location.pathname)
+        return { name: 'logoquiz', joinCode: code.toUpperCase() }
+      }
+    } catch { /* yoksay */ }
+    return { name: 'home' }
+  })
 
   // Android TV Geri tuşu = tarayıcı geçmişi: alt ekrandayken Geri ana sayfaya döner (uygulamayı kapatmaz)
   useEffect(() => {
@@ -57,7 +67,7 @@ export default function App() {
     return <CardGame key={view.gameId} gameId={view.gameId} onHome={goHome} />
   }
   if (view.name === 'logoquiz') {
-    return <LogoQuiz onHome={goHome} />
+    return <LogoQuiz key={view.joinCode || 'lq'} joinCode={view.joinCode} onHome={goHome} />
   }
   if (view.name === 'oknok') {
     return <OkNok onHome={goHome} />

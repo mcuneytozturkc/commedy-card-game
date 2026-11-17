@@ -17,3 +17,12 @@ export function submitUrl() {
 export function openPage(name) {
   window.location.href = import.meta.env.BASE_URL + name
 }
+
+// Logo Bilmece oturumuna QR ile katılma adresi: sayfa gerçek bir adresten (ör. yerel ağ IP'si) açıldıysa o,
+// localhost / APK ise config.js'teki yayın adresi kullanılır.
+export function logoJoinUrl(code) {
+  const { protocol, hostname, origin } = window.location
+  const isLocal = protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(hostname)
+  const base = isLocal ? publicBase() : origin + import.meta.env.BASE_URL
+  return base ? base + '?logo=' + encodeURIComponent(code) : ''
+}

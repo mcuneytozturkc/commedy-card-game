@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { ref, set, update, get, onValue, runTransaction } from 'firebase/database'
 import Navbar from './Navbar.jsx'
+import QrCode from './QrCode.jsx'
+import { logoJoinUrl } from '../publicUrl.js'
 import { db } from '../firebase.js'
 import { LQ_LOGOS } from '../data/logos.js'
 import LogoImg, { pickForTier, brandfetchId } from './LogoImg.jsx'
@@ -12,10 +14,10 @@ const DIFF_BADGE  = { kolay: 'db-easy',  orta: 'db-medium', zor: 'db-hard' }
 
 function genCode() { return Math.random().toString(36).substr(2, 6).toUpperCase() }
 
-export default function LogoQuiz({ onHome }) {
+export default function LogoQuiz({ onHome, joinCode }) {
   const [splash,   setSplash]   = useState(true)
   const [isOnline, setIsOnline] = useState(navigator.onLine)
-  const [mode,     setMode]     = useState(null) // null | 'online' | 'legacy'
+  const [mode,     setMode]     = useState(joinCode ? 'join' : null) // null | 'legacy' (kağıt-kalem) | 'online' (sunucu) | 'join' (oyuncu)
 
   // ── Legacy states ──────────────────────────────────────────────
   const [legacyStage,   setLegacyStage]   = useState('setup') // setup|game|end
@@ -36,7 +38,7 @@ export default function LogoQuiz({ onHome }) {
   const [data,          setData]          = useState(null)
   const [err,           setErr]           = useState('')
   const [hostNameInput, setHostNameInput] = useState('')
-  const [joinCodeInput, setJoinCodeInput] = useState('')
+  const [joinCodeInput, setJoinCodeInput] = useState(joinCode || '')
   const [joinNameInput, setJoinNameInput] = useState('')
   const [guessInput,    setGuessInput]    = useState('')
   const unsubRef    = useRef(null)
@@ -76,34 +78,32 @@ export default function LogoQuiz({ onHome }) {
               Nasıl oynamak istersiniz?
             </p>
 
+            {!isOnline && <div className="lq-err" style={{ maxWidth: 440 }}>📵 Logolar internetten geldiği için bağlantı gerekli.</div>}
             <div className="lq-mode-options">
-              {/* ONLINE */}
-              <button
-                className={'lq-mode-btn' + (!isOnline ? ' lq-mode-disabled' : '')}
-                disabled={!isOnline}
-                onClick={() => { setMode('online'); setErr('') }}
-              >
-                <span className="lq-mode-icon">🌐</span>
+              <button className={'lq-mode-btn' + (!isOnline ? ' lq-mode-disabled' : '')} disabled={!isOnline}
+                onClick={() => { setMode('legacy'); setErr('') }}>
+                <span className="lq-mode-icon">📝</span>
                 <div className="lq-mode-text">
-                  <div className="lq-mode-title">Online</div>
-                  <div className="lq-mode-sub">
-                    Oyuncular telefonlarından katılır — aynı ağ şart
-                  </div>
-                  {isOnline
-                    ? <div className="lq-mode-badge lq-mode-badge-on">● İnternet var</div>
-                    : <div className="lq-mode-badge lq-mode-badge-off">📵 İnternet yok — deaktif</div>}
+                  <div className="lq-mode-title">Kağıt &amp; Kalem</div>
+                  <div className="lq-mode-sub">Logo ekranda, herkes tahminini kağıda yazar veya söyler</div>
                 </div>
               </button>
 
-              {/* LEGACY */}
-              <button className="lq-mode-btn" onClick={() => setMode('legacy')}>
-                <span className="lq-mode-icon">📝</span>
+              <button className={'lq-mode-btn' + (!isOnline ? ' lq-mode-disabled' : '')} disabled={!isOnline}
+                onClick={() => { setMode('online'); setErr('') }}>
+                <span className="lq-mode-icon">📱</span>
                 <div className="lq-mode-text">
-                  <div className="lq-mode-title">Legacy</div>
-                  <div className="lq-mode-sub">
-                    Kağıt & kalem veya sözlü tahmin — internet gerekmez
-                  </div>
-                  <div className="lq-mode-badge lq-mode-badge-on">📵 Offline çalışır</div>
+                  <div className="lq-mode-title">Telefondan Yazma</div>
+                  <div className="lq-mode-sub">Sunucu ol — oyuncular QR ile katılıp tahminini telefonda yazar</div>
+                </div>
+              </button>
+
+              <button className={'lq-mode-btn' + (!isOnline ? ' lq-mode-disabled' : '')} disabled={!isOnline}
+                onClick={() => { setMode('join'); setErr('') }}>
+                <span className="lq-mode-icon">🔑</span>
+                <div className="lq-mode-text">
+                  <div className="lq-mode-title">Oturuma Katıl</div>
+                  <div className="lq-mode-sub">Sunucunun verdiği oturum koduyla oyuna gir</div>
                 </div>
               </button>
             </div>
@@ -145,7 +145,7 @@ export default function LogoQuiz({ onHome }) {
     const nav = (
       <Navbar
         onHome={() => { setMode(null); setLegacyStage('setup') }}
-        center={legacyStage === 'game' ? <div className="nav-game-badge">🏷️ Legacy — {DIFF_LABEL[diff]}</div> : null}
+        center={legacyStage === 'game' ? <div className="nav-game-badge">🏷️ Kağıt &amp; Kalem — {DIFF_LABEL[diff]}</div> : null}
         right={legacyStage === 'game'
           ? <><div className="nav-host-chip">🎤 {hostLabel}</div><button className="nav-btn" onClick={() => setLegacyStage('end')}>Bitir</button></>
           : null}
@@ -159,7 +159,7 @@ export default function LogoQuiz({ onHome }) {
           <div className="screen screen-lq">
             <div className="lq-card" style={{ maxWidth: 500, textAlign: 'center' }}>
               <div style={{ fontSize: 52, marginBottom: 8 }}>📝</div>
-              <h3 style={{ fontSize: 20, marginBottom: 16 }}>Legacy Mod</h3>
+              <h3 style={{ fontSize: 20, marginBottom: 16 }}>Kağıt &amp; Kalem</h3>
 
               <div className="host-input-row" style={{ marginBottom: 20 }}>
                 <span className="host-icon">🎤</span>
@@ -342,9 +342,9 @@ export default function LogoQuiz({ onHome }) {
         <div className="screen screen-lq">
           {err && <div className="lq-err">{err}</div>}
 
-          <div className="lq-card">
+          {mode === 'online' && <div className="lq-card">
             <h3>🎤 Sunucu Ol</h3>
-            <p>Oturum oluştur, kodu paylaş — oyuncular telefonda logo quiz'e tıklayıp katılır.</p>
+            <p>Oturum oluştur — oyuncular QR kodu okutup ya da kodu girerek telefonundan katılır.</p>
             <div className="diff-row">
               {['kolay', 'orta', 'zor'].map(d => (
                 <button key={d} className={'diff-btn' + (onlineDiff === d ? ' sel-' + d : '')} onClick={() => setOnlineDiff(d)}>
@@ -355,17 +355,17 @@ export default function LogoQuiz({ onHome }) {
             <input className="lq-input" placeholder="Sunucu adın" value={hostNameInput}
               onChange={e => setHostNameInput(e.target.value)} />
             <button className="lq-btn lq-btn-primary" onClick={createSession} disabled={loadingLogos}>{loadingLogos ? 'Logolar yükleniyor…' : 'Oturum Oluştur'}</button>
-          </div>
+          </div>}
 
-          <div className="lq-card">
-            <h3>📱 Oyuncu Olarak Katıl</h3>
+          {mode === 'join' && <div className="lq-card">
+            <h3>🔑 Oturuma Katıl</h3>
             <p>Sunucunun verdiği 6 haneli kodu ve adını gir.</p>
             <input className="lq-code-input" placeholder="KOD" maxLength={6} value={joinCodeInput}
               onChange={e => setJoinCodeInput(e.target.value.toUpperCase())} />
             <input className="lq-input" placeholder="Adın" value={joinNameInput}
               onChange={e => setJoinNameInput(e.target.value)} />
             <button className="lq-btn lq-btn-primary" onClick={joinSession}>Katıl</button>
-          </div>
+          </div>}
 
           <button className="btn-secondary" style={{ maxWidth: 440 }} onClick={() => setMode(null)}>← Mod Seç</button>
         </div>
@@ -419,7 +419,8 @@ export default function LogoQuiz({ onHome }) {
           <div className="session-display">
             <div className="code-label">Oturum Kodu</div>
             <div className="code-val">{code}</div>
-            <div className="code-hint">Oyuncular uygulamada → Logo Bilmece → Online → bu kodu girer</div>
+            <div style={{ display: 'flex', justifyContent: 'center', margin: '12px 0 8px' }}><QrCode url={logoJoinUrl(code)} size={200} /></div>
+            <div className="code-hint">Oyuncular QR'ı okutur ya da uygulamada → Logo Bilmece → Oturuma Katıl → bu kodu girer</div>
           </div>
           <div className="lq-player-list">
             <div className="pl-label">Katılanlar ({onlinePlayers.length})</div>
