@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yusuf Show — Kart / Soru Gönder</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#0a0a14; --surface:#13132a; --surface2:#1e1e3a; --border:#2e2e55; --text:#eeeeff; --muted:#8a8ac0; --accent:#7c3aed; --accent2:#a855f7; --gold:#f59e0b; --green:#22c55e; --red:#ef4444; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; padding:1.2rem; }
+  .wrap { max-width:36rem; margin:0 auto; }
+  h1 { font-size:1.8rem; font-weight:900; text-align:center; margin-top:1rem; background:linear-gradient(135deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .sub { color:var(--muted); text-align:center; margin:.4rem 0 1.4rem; font-size:.95rem; line-height:1.4; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:18px; padding:1.2rem; }
+  label { display:block; font-weight:700; font-size:.9rem; margin:1rem 0 .4rem; }
+  label:first-child { margin-top:0; }
+  label small { color:var(--muted); font-weight:500; }
+  input[type=text], textarea, select { width:100%; padding:.85rem 1rem; border-radius:12px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-size:1rem; font-family:inherit; outline:none; }
+  input:focus, textarea:focus, select:focus { border-color:var(--accent2); }
+  textarea { min-height:6.5rem; resize:vertical; }
+  .count { text-align:right; color:var(--muted); font-size:.8rem; margin-top:.2rem; }
+  .seg { display:flex; gap:.6rem; }
+  .seg label { flex:1; margin:0; padding:.7rem; text-align:center; border:2px solid var(--border); border-radius:12px; background:var(--surface2); font-weight:700; cursor:pointer; }
+  .seg input { display:none; }
+  .seg input:checked + span { color:#fff; }
+  .seg label:has(input:checked) { border-color:var(--accent2); background:rgba(168,85,247,.18); }
+  .hp { position:absolute; left:-9999px; opacity:0; height:0; }
+  .btn { width:100%; margin-top:1.2rem; padding:1rem; border-radius:14px; border:none; font-size:1.1rem; font-weight:800; color:#fff; background:linear-gradient(135deg,var(--accent),#ec4899); cursor:pointer; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .msg { margin-top:1rem; padding:.8rem 1rem; border-radius:12px; font-size:.95rem; line-height:1.4; display:none; }
+  .msg.show { display:block; }
+  .msg.ok { background:rgba(34,197,94,.12); border:1px solid var(--green); }
+  .msg.err { background:rgba(239,68,68,.12); border:1px solid var(--red); }
+  .sim { margin-top:.8rem; padding:.8rem 1rem; border-radius:12px; font-size:.9rem; line-height:1.4; display:none; }
+  .sim.show { display:block; }
+  .sim.warn { background:rgba(245,158,11,.12); border:1px solid var(--gold); }
+  .sim.block { background:rgba(239,68,68,.12); border:1px solid var(--red); }
+  .sim ul { margin:.4rem 0 0 1.1rem; }
+  .sim li { margin:.15rem 0; }
+  .sim .pct { color:var(--muted); font-size:.8rem; }
+  .hidden { display:none; }
+  a.back { display:block; text-align:center; color:var(--muted); font-size:.85rem; margin-top:1.2rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>✍️ Kart / Soru Gönder</h1>
+  <div class="sub">Oyuna eklenmesini istediğin kart, görev veya bilmeceyi yaz.<br>Gönderdiklerin admin onayından geçtikten sonra oyuna girer.</div>
+
+  <form class="card" id="form" autocomplete="off" onsubmit="return submitCard(event)">
+    <label for="game">Hangi oyun için?</label>
+    <select id="game" onchange="onGameChange()"></select>
+
+    <div id="kind-row">
+      <label>Kart türü</label>
+      <div class="seg">
+        <label><input type="radio" name="kind" value="verbal" checked><span>💬 Sözlü</span></label>
+        <label><input type="radio" name="kind" value="action"><span>🎭 Hareket</span></label>
+      </div>
+    </div>
+
+    <label for="text" id="text-label">Kart metni <small>(8–200 karakter)</small></label>
+    <textarea id="text" maxlength="200" oninput="onInput()"></textarea>
+    <div class="count"><span id="cnt">0</span>/200</div>
+    <div class="sim" id="sim"></div>
+
+    <div id="answer-row" class="hidden">
+      <label for="answer">Cevap <small>(bilmece/soru için zorunlu)</small></label>
+      <input type="text" id="answer" maxlength="100">
+    </div>
+
+    <label for="category">Kategori <small>(isteğe bağlı)</small></label>
+    <input type="text" id="category" maxlength="30" list="cats" placeholder="Örn: 💻 Teknoloji">
+    <datalist id="cats"></datalist>
+
+    <label for="author">Adın <small>(isteğe bağlı)</small></label>
+    <input type="text" id="author" maxlength="24">
+
+    <input type="text" id="website" class="hp" tabindex="-1" aria-hidden="true">
+
+    <button class="btn" id="btn" type="submit">Onaya Gönder ▶</button>
+    <div class="msg" id="msg"></div>
+  </form>
+  <a class="back" href="index.html">← Oyuna dön</a>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="cards.js"></script>
+<script src="shared.js"></script>
+<script src="similarity.js"></script>
+<script>
+let db = null, approved = [], simResult = [], simTimer = null;
+const $ = id => document.getElementById(id);
+
+function initForm() {
+  $('game').innerHTML = Object.keys(SUBMIT_GAMES).map(k => `<option value="${k}">${SUBMIT_GAMES[k].emoji} ${SUBMIT_GAMES[k].name}</option>`).join('');
+  try { db = initDb(); loadApprovedCards(db).then(a => { approved = a; onInput(); }); } catch (e) { showMsg('err', 'Firebase yüklenemedi: ' + e.message); }
+  try { $('author').value = localStorage.getItem('cc_author') || ''; } catch (e) {}
+  const g = new URLSearchParams(location.search).get('game'); if (g && SUBMIT_GAMES[g]) $('game').value = g;
+  onGameChange();
+}
+
+function onGameChange() {
+  const g = $('game').value, isRiddle = g === 'riddle';
+  $('kind-row').classList.toggle('hidden', g !== 'comedy');
+  $('answer-row').classList.toggle('hidden', !isRiddle);
+  $('text-label').innerHTML = (isRiddle ? 'Soru / bilmece' : 'Kart metni') + ' <small>(8–200 karakter)</small>';
+  $('text').placeholder = SUBMIT_GAMES[g].hint;
+  const cats = [...new Set(((BUILTIN_CARDS[g]) || []).map(c => c.category))];
+  $('cats').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+  onInput();
+}
+
+function poolFor(g) {
+  return builtinPool(g).concat(approved.filter(a => a.game === g).map(a => ({ text: a.text, source: 'onaylı', game: g, id: a.id })));
+}
+
+function onInput() {
+  $('cnt').textContent = $('text').value.length;
+  clearTimeout(simTimer); simTimer = setTimeout(checkSimilar, 250);
+}
+
+function checkSimilar() {
+  const t = $('text').value.trim(), box = $('sim');
+  simResult = [];
+  if (t.length < 8) { box.className = 'sim'; box.innerHTML = ''; $('btn').disabled = false; return; }
+  simResult = findSimilar(t, poolFor($('game').value), { threshold: SIM_WARN, limit: 3 });
+  const exact = simResult.find(r => r.exact);
+  if (!simResult.length) { box.className = 'sim'; box.innerHTML = ''; $('btn').disabled = false; return; }
+  const li = simResult.map(r => `<li>“${esc(r.text)}” <span class="pct">(${r.exact ? 'birebir aynı' : '%' + Math.round(r.score * 100) + ' benzer'} · ${r.source})</span></li>`).join('');
+  if (exact) { box.className = 'sim show block'; box.innerHTML = '⛔ Bu kart zaten var, tekrar gönderemezsin:<ul>' + li + '</ul>'; $('btn').disabled = true; }
+  else { box.className = 'sim show warn'; box.innerHTML = '⚠️ Buna benzeyen kartlar var. Yine de gönderebilirsin, admin karar verecek:<ul>' + li + '</ul>'; $('btn').disabled = false; }
+}
+
+function showMsg(kind, text) { const m = $('msg'); m.className = 'msg show ' + kind; m.textContent = text; }
+
+// Basit istemci tarafı hız sınırı (asıl koruma admin onayı): en az 8 sn arayla, saatte en fazla 20 kart
+function rateOk() {
+  try {
+    const now = Date.now(), arr = JSON.parse(localStorage.getItem('cc_sub_times') || '[]').filter(t => now - t < 3600000);
+    if (arr.length && now - arr[arr.length - 1] < 8000) return 'Biraz yavaş: birkaç saniye bekleyip tekrar dene.';
+    if (arr.length >= 20) return 'Saatlik gönderim sınırına ulaştın. Daha sonra tekrar dene.';
+    arr.push(now); localStorage.setItem('cc_sub_times', JSON.stringify(arr));
+  } catch (e) {}
+  return null;
+}
+
+function submitCard(e) {
+  e.preventDefault();
+  if ($('website').value) return false;                       // bot tuzağı
+  const game = $('game').value, text = $('text').value.trim().replace(/\s+/g, ' ');
+  const answer = $('answer').value.trim(), category = $('category').value.trim() || '✨ Genel', author = $('author').value.trim();
+  const kind = (document.querySelector('input[name=kind]:checked') || {}).value;
+  if (text.length < 8) return showMsg('err', 'Kart metni en az 8 karakter olmalı.'), false;
+  if (game === 'riddle' && !answer) return showMsg('err', 'Bilmece/soru için cevabı da yaz.'), false;
+  if (simResult.some(r => r.exact)) return showMsg('err', 'Bu kart zaten var.'), false;
+  const rl = rateOk(); if (rl) return showMsg('err', rl), false;
+  if (!db) return showMsg('err', 'Bağlantı yok.'), false;
+  const rec = { game, type: typeForGame(game, kind), text, category, createdAt: firebase.database.ServerValue.TIMESTAMP };
+  if (game === 'riddle') rec.answer = answer;
+  if (author) rec.author = author;
+  $('btn').disabled = true;
+  db.ref('cards/pending').push(rec).then(() => {
+    try { localStorage.setItem('cc_author', author); } catch (e) {}
+    showMsg('ok', '✅ Teşekkürler! Kartın admin onayına gönderildi.');
+    $('text').value = ''; $('answer').value = ''; onInput();
+  }).catch(err => showMsg('err', 'Gönderilemedi: ' + err.message)).finally(() => { $('btn').disabled = false; });
+  return false;
+}
+
+initForm();
+</script>
+</body>
+</html>

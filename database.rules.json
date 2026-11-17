@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "sessions": {
+      ".read": true,
+      ".write": true
+    },
+    "cards": {
+      "approved": {
+        ".read": true,
+        ".write": "auth != null && auth.uid === 'wsk7G8rLgAgfcNp7Y5r2a7BJuk13'"
+      },
+      "pending": {
+        ".read": "auth != null && auth.uid === 'wsk7G8rLgAgfcNp7Y5r2a7BJuk13'",
+        "$id": {
+          ".write": "(auth != null && auth.uid === 'wsk7G8rLgAgfcNp7Y5r2a7BJuk13') || (!data.exists() && newData.exists())",
+          ".validate": "newData.hasChildren(['game', 'type', 'text', 'category', 'createdAt'])",
+          "game": { ".validate": "newData.isString() && newData.val().matches(/^(comedy|pantomime|theatre|imitation|riddle)$/)" },
+          "type": { ".validate": "newData.isString() && newData.val().matches(/^(verbal|action|theatre|sound|riddle)$/)" },
+          "text": { ".validate": "newData.isString() && newData.val().length >= 8 && newData.val().length <= 200" },
+          "category": { ".validate": "newData.isString() && newData.val().length <= 30" },
+          "answer": { ".validate": "newData.isString() && newData.val().length <= 100" },
+          "author": { ".validate": "newData.isString() && newData.val().length <= 24" },
+          "createdAt": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}

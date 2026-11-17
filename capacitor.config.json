@@ -1,0 +1,8 @@
+{
+  "appId": "com.yusufshow.tv",
+  "appName": "Yusuf Show",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}

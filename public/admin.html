@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yusuf Show — Admin Onay</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#0a0a14; --surface:#13132a; --surface2:#1e1e3a; --border:#2e2e55; --text:#eeeeff; --muted:#8a8ac0; --accent:#7c3aed; --accent2:#a855f7; --gold:#f59e0b; --green:#22c55e; --red:#ef4444; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; padding:1.2rem; }
+  .wrap { max-width:54rem; margin:0 auto; }
+  h1 { font-size:1.6rem; font-weight:900; background:linear-gradient(135deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .top { display:flex; align-items:center; gap:1rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .top .grow { flex:1; }
+  .uid { color:var(--muted); font-size:.8rem; }
+  .uid code { background:var(--surface2); padding:.1rem .4rem; border-radius:6px; user-select:all; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.1rem; }
+  input[type=text], input[type=email], input[type=password], textarea, select { width:100%; padding:.7rem .9rem; border-radius:10px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-size:.95rem; font-family:inherit; outline:none; margin-bottom:.6rem; }
+  input:focus, textarea:focus, select:focus { border-color:var(--accent2); }
+  textarea { min-height:4.5rem; resize:vertical; }
+  button { font-family:inherit; cursor:pointer; }
+  .btn { padding:.6rem 1.2rem; border-radius:10px; border:none; font-weight:800; color:#fff; background:linear-gradient(135deg,var(--accent),#ec4899); }
+  .btn:disabled { opacity:.35; cursor:not-allowed; }
+  .btn.ok { background:linear-gradient(135deg,#16a34a,#22c55e); }
+  .btn.no { background:transparent; border:1px solid var(--red); color:#fca5a5; }
+  .btn.ghost { background:transparent; border:1px solid var(--border); color:var(--muted); font-weight:600; }
+  .tabs { display:flex; gap:.5rem; margin-bottom:1rem; align-items:center; flex-wrap:wrap; }
+  .tab { padding:.5rem 1.1rem; border-radius:999px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-weight:700; }
+  .tab.sel { border-color:var(--accent2); background:rgba(168,85,247,.18); }
+  .tabs select, .tabs input { width:auto; margin:0; }
+  .item { background:var(--surface); border:2px solid var(--border); border-radius:16px; padding:1rem 1.2rem; margin-bottom:.9rem; }
+  .item.dup { border-color:var(--red); }
+  .item.sim { border-color:var(--gold); }
+  .meta { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; color:var(--muted); font-size:.8rem; margin-bottom:.5rem; }
+  .badge { padding:.15rem .6rem; border-radius:999px; background:var(--surface2); color:var(--text); font-weight:700; }
+  .badge.red { background:rgba(239,68,68,.2); color:#fca5a5; }
+  .badge.gold { background:rgba(245,158,11,.2); color:#fcd34d; }
+  .txt { font-size:1.1rem; font-weight:700; line-height:1.4; }
+  .ans { margin-top:.3rem; color:var(--gold); font-weight:600; }
+  .matches { margin-top:.6rem; padding:.6rem .9rem; background:var(--surface2); border-radius:10px; font-size:.88rem; line-height:1.4; }
+  .matches ul { margin:.3rem 0 0 1.1rem; }
+  .pct { color:var(--muted); font-size:.8rem; }
+  .actions { display:flex; gap:.6rem; margin-top:.8rem; flex-wrap:wrap; }
+  .empty { text-align:center; color:var(--muted); padding:2rem 0; }
+  .warnbox { background:rgba(245,158,11,.12); border:1px solid var(--gold); border-radius:12px; padding:.9rem 1.1rem; margin-bottom:1rem; font-size:.92rem; line-height:1.5; }
+  .err { color:#f87171; min-height:1.2rem; font-size:.9rem; margin-bottom:.5rem; }
+  .hidden { display:none !important; }
+  .login { max-width:24rem; margin:3rem auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Giriş -->
+  <div id="v-login" class="login">
+    <h1 style="text-align:center;margin-bottom:1rem">🛡️ Admin Girişi</h1>
+    <div class="card">
+      <input type="email" id="email" placeholder="E-posta" autocomplete="username">
+      <input type="password" id="pass" placeholder="Şifre" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+      <div class="err" id="login-err"></div>
+      <button class="btn" style="width:100%" onclick="login()">Giriş yap</button>
+    </div>
+  </div>
+
+  <!-- Panel -->
+  <div id="v-panel" class="hidden">
+    <div class="top">
+      <h1>🛡️ Kart Onay Paneli</h1><span class="grow"></span>
+      <span class="uid">UID: <code id="uid"></code></span>
+      <button class="btn ghost" onclick="logout()">Çıkış</button>
+    </div>
+    <div id="perm" class="warnbox hidden"></div>
+    <div class="tabs">
+      <button class="tab sel" id="tab-pending" onclick="setTab('pending')">⏳ Bekleyenler (<span id="n-pending">0</span>)</button>
+      <button class="tab" id="tab-approved" onclick="setTab('approved')">✅ Onaylananlar (<span id="n-approved">0</span>)</button>
+      <select id="f-game" onchange="render()"></select>
+      <input type="text" id="f-q" placeholder="Ara…" oninput="render()">
+      <span class="grow" style="flex:1"></span>
+      <button class="btn ok" id="btn-bulk" onclick="approveClean()">Benzeri olmayanların hepsini onayla</button>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="cards.js"></script>
+<script src="shared.js"></script>
+<script src="similarity.js"></script>
+<script>
+let db, user = null, tab = 'pending', pending = [], approved = [], editing = {}, drafts = {}, started = false;
+const $ = id => document.getElementById(id);
+
+function boot() {
+  $('f-game').innerHTML = '<option value="">Tüm oyunlar</option>' + Object.keys(SUBMIT_GAMES).map(k => `<option value="${k}">${SUBMIT_GAMES[k].emoji} ${SUBMIT_GAMES[k].name}</option>`).join('');
+  try { db = initDb(); } catch (e) { $('login-err').textContent = 'Firebase yüklenemedi: ' + e.message; return; }
+  firebase.auth().onAuthStateChanged(u => {
+    user = u;
+    $('v-login').classList.toggle('hidden', !!u); $('v-panel').classList.toggle('hidden', !u);
+    if (u) { $('uid').textContent = u.uid; startListening(); }
+  });
+}
+function login() {
+  $('login-err').textContent = '';
+  firebase.auth().signInWithEmailAndPassword($('email').value.trim(), $('pass').value)
+    .catch(e => { $('login-err').textContent = 'Giriş başarısız: ' + (e.code || e.message); });
+}
+function logout() { firebase.auth().signOut(); }
+
+function startListening() {
+  if (started) return; started = true;
+  const fail = (what) => (err) => { $('perm').classList.remove('hidden');
+    $('perm').innerHTML = `⚠️ <b>${what}</b> okunamadı (${esc(err.code || err.message)}). Bu hesabın UID'si Firebase kurallarındaki <code>ADMIN_UID</code> ile aynı olmalı. UID: <code>${esc(user.uid)}</code> — kurulum adımları için <b>ADMIN-KURULUM.md</b> dosyasına bak.`; };
+  db.ref('cards/pending').on('value', s => { pending = entries(s.val()).map(([id, c]) => ({ ...c, id })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); $('perm').classList.add('hidden'); render(); }, fail('Bekleyen kartlar'));
+  db.ref('cards/approved').on('value', s => { approved = entries(s.val()).map(([id, c]) => ({ ...c, id })).sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0)); render(); }, fail('Onaylı kartlar'));
+}
+
+function setTab(t) { tab = t; $('tab-pending').classList.toggle('sel', t === 'pending'); $('tab-approved').classList.toggle('sel', t === 'approved'); $('btn-bulk').classList.toggle('hidden', t !== 'pending'); render(); }
+
+// Bir bekleyen kartın karşılaştırma havuzu: yerleşik + onaylı + diğer bekleyenler (aynı oyun)
+function analyze(item) {
+  const text = (drafts[item.id] && editing[item.id]) ? drafts[item.id].text : item.text;
+  const pool = builtinPool(item.game)
+    .concat(approved.filter(a => a.game === item.game).map(a => ({ text: a.text, source: 'onaylı', id: a.id })))
+    .concat(pending.filter(p => p.id !== item.id && p.game === item.game).map(p => ({ text: p.text, source: 'bekleyen', id: p.id })));
+  const m = findSimilar(text, pool, { threshold: SIM_WARN, limit: 4 });
+  return { matches: m, hardDup: m.some(r => r.exact && r.source !== 'bekleyen') };
+}
+
+function fmt(ts) { return ts ? new Date(ts).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : ''; }
+function gameBadge(g) { const s = SUBMIT_GAMES[g]; return `<span class="badge">${s ? s.emoji + ' ' + esc(s.name) : esc(g)}</span>`; }
+
+function render() {
+  $('n-pending').textContent = pending.length; $('n-approved').textContent = approved.length;
+  const g = $('f-game').value, q = normText($('f-q').value);
+  const src = (tab === 'pending' ? pending : approved).filter(c => (!g || c.game === g) && (!q || normText(c.text + ' ' + (c.answer || '') + ' ' + (c.category || '')).includes(q)));
+  if (!src.length) { $('list').innerHTML = `<div class="empty">${tab === 'pending' ? 'Onay bekleyen kart yok 🎉' : 'Kayıt bulunamadı.'}</div>`; return; }
+  $('list').innerHTML = src.map(c => tab === 'pending' ? pendingHtml(c) : approvedHtml(c)).join('');
+}
+
+function matchesHtml(a) {
+  if (!a.matches.length) return '';
+  return `<div class="matches">${a.hardDup ? '⛔ <b>Zaten var:</b>' : '⚠️ <b>Benzer kayıtlar:</b>'}<ul>` +
+    a.matches.map(r => `<li>“${esc(r.text)}” <span class="pct">(${r.exact ? 'birebir aynı' : '%' + Math.round(r.score * 100)} · ${r.source})</span></li>`).join('') + '</ul></div>';
+}
+
+function pendingHtml(c) {
+  const a = analyze(c), ed = editing[c.id], d = drafts[c.id] || c;
+  const cls = a.hardDup ? 'dup' : a.matches.length ? 'sim' : '';
+  const flag = a.hardDup ? '<span class="badge red">Mükerrer</span>' : a.matches.length ? '<span class="badge gold">Benzer var</span>' : '';
+  const body = ed
+    ? `<textarea oninput="draft('${c.id}','text',this.value)">${esc(d.text)}</textarea>
+       <input type="text" value="${esc(d.category || '')}" placeholder="Kategori" oninput="draft('${c.id}','category',this.value)">
+       ${c.game === 'riddle' ? `<input type="text" value="${esc(d.answer || '')}" placeholder="Cevap" oninput="draft('${c.id}','answer',this.value)">` : ''}`
+    : `<div class="txt">${esc(c.text)}</div>${c.answer ? `<div class="ans">Cevap: ${esc(c.answer)}</div>` : ''}`;
+  return `<div class="item ${cls}"><div class="meta">${gameBadge(c.game)}<span class="badge">${esc(c.type)}</span><span class="badge">${esc(c.category || '')}</span>${flag}<span>${esc(c.author || 'anonim')} · ${fmt(c.createdAt)}</span></div>
+    ${body}${matchesHtml(a)}
+    <div class="actions">
+      ${ed ? `<button class="btn" onclick="saveEdit('${c.id}')">Kaydet</button><button class="btn ghost" onclick="cancelEdit('${c.id}')">Vazgeç</button>`
+           : `<button class="btn ok" ${a.hardDup ? 'disabled' : ''} onclick="approve('${c.id}')">✅ Onayla</button><button class="btn ghost" onclick="startEdit('${c.id}')">✏️ Düzenle</button><button class="btn no" onclick="reject('${c.id}')">🗑️ Reddet</button>`}
+    </div></div>`;
+}
+function approvedHtml(c) {
+  return `<div class="item"><div class="meta">${gameBadge(c.game)}<span class="badge">${esc(c.category || '')}</span><span>${esc(c.author || 'anonim')} · onay: ${fmt(c.approvedAt)}</span></div>
+    <div class="txt">${esc(c.text)}</div>${c.answer ? `<div class="ans">Cevap: ${esc(c.answer)}</div>` : ''}
+    <div class="actions"><button class="btn no" onclick="removeApproved('${c.id}')">Oyundan kaldır</button></div></div>`;
+}
+
+// ───────── Eylemler ─────────
+function startEdit(id) { const c = pending.find(p => p.id === id); drafts[id] = { text: c.text, category: c.category, answer: c.answer || '' }; editing[id] = true; render(); }
+function cancelEdit(id) { delete editing[id]; delete drafts[id]; render(); }
+function draft(id, k, v) { drafts[id][k] = v; }
+function saveEdit(id) {
+  const d = drafts[id], text = (d.text || '').trim().replace(/\s+/g, ' ');
+  if (text.length < 8) return alert('Metin en az 8 karakter olmalı.');
+  const upd = { text, category: (d.category || '').trim() || '✨ Genel' };
+  if (d.answer !== undefined && pending.find(p => p.id === id).game === 'riddle') upd.answer = (d.answer || '').trim();
+  db.ref('cards/pending/' + id).update(upd).then(() => { delete editing[id]; delete drafts[id]; });
+}
+function approveRecord(c) {
+  const rec = { game: c.game, type: c.type, text: c.text, category: c.category || '✨ Genel', createdAt: c.createdAt || null, approvedAt: firebase.database.ServerValue.TIMESTAMP };
+  if (c.answer) rec.answer = c.answer; if (c.author) rec.author = c.author;
+  return rec;
+}
+function approve(id) {
+  const c = pending.find(p => p.id === id); if (!c) return;
+  if (analyze(c).hardDup) return alert('Bu kart zaten var (birebir aynı).');
+  db.ref().update({ ['cards/approved/' + id]: approveRecord(c), ['cards/pending/' + id]: null });
+}
+function reject(id) { if (confirm('Bu kart reddedilip silinsin mi?')) db.ref('cards/pending/' + id).remove(); }
+function removeApproved(id) { if (confirm('Bu kart oyundan kaldırılsın mı?')) db.ref('cards/approved/' + id).remove(); }
+
+// Hiçbir kayıtla (yerleşik/onaylı/diğer bekleyen) benzerliği olmayan bekleyenleri tek seferde onayla
+function approveClean() {
+  const g = $('f-game').value, upd = {}; let n = 0;
+  pending.filter(c => !g || c.game === g).forEach(c => { if (!analyze(c).matches.length) { upd['cards/approved/' + c.id] = approveRecord(c); upd['cards/pending/' + c.id] = null; n++; } });
+  if (!n) return alert('Benzeri olmayan bekleyen kart yok.');
+  if (confirm(n + ' kart onaylansın mı?')) db.ref().update(upd);
+}
+
+boot();
+</script>
+</body>
+</html>

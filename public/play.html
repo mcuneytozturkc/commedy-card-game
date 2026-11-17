@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Yusuf Show — Oyuncu</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg:#0a0a14; --surface:#13132a; --surface2:#1e1e3a; --border:#2e2e55; --text:#eeeeff; --muted:#8a8ac0; --accent:#7c3aed; --accent2:#a855f7; --gold:#f59e0b; }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; min-height:100dvh; }
+  .screen { display:none; min-height:100vh; min-height:100dvh; padding:1.2rem; flex-direction:column; max-width:30rem; margin:0 auto; }
+  .screen.active { display:flex; }
+  h1.brand { font-size:1.9rem; font-weight:900; text-align:center; background:linear-gradient(135deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-top:1.5rem; }
+  .sub { color:var(--muted); text-align:center; margin:.4rem 0 1.5rem; font-size:.95rem; }
+  input, textarea { width:100%; padding:.95rem 1rem; border-radius:14px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-size:1.05rem; font-family:inherit; outline:none; margin-bottom:.9rem; }
+  input:focus, textarea:focus { border-color:var(--accent2); }
+  input.code { font-size:1.9rem; font-weight:800; text-align:center; letter-spacing:.5rem; text-transform:uppercase; }
+  textarea { min-height:9rem; resize:none; }
+  button { font-family:inherit; cursor:pointer; }
+  .btn { width:100%; padding:1rem; border-radius:14px; border:none; font-size:1.1rem; font-weight:800; color:#fff; background:linear-gradient(135deg,var(--accent),#ec4899); }
+  .btn:disabled { opacity:.4; }
+  .btn.ghost { background:transparent; border:1px solid var(--border); color:var(--muted); font-weight:600; font-size:.9rem; padding:.7rem; margin-top:.8rem; }
+  .err { color:#f87171; text-align:center; margin-bottom:.8rem; min-height:1.2rem; font-size:.95rem; }
+  .hdr { display:flex; align-items:center; justify-content:space-between; padding:.7rem 1rem; border-radius:14px; background:var(--surface); border:2px solid var(--border); margin-bottom:1rem; }
+  .hdr .who { font-weight:800; }
+  .hdr .who small { display:block; color:var(--muted); font-weight:500; font-size:.8rem; }
+  .hdr .sc { font-size:1.6rem; font-weight:900; }
+  .team-btn { display:flex; align-items:center; justify-content:space-between; width:100%; padding:1.1rem 1.2rem; margin-bottom:.8rem; border-radius:16px; border:3px solid var(--border); background:var(--surface); color:var(--text); font-size:1.15rem; font-weight:800; }
+  .team-btn small { color:var(--muted); font-weight:500; }
+  .main { flex:1; display:flex; flex-direction:column; justify-content:center; text-align:center; }
+  .big { font-size:2.2rem; font-weight:900; margin-bottom:.8rem; }
+  .big.glow { background:linear-gradient(135deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .card-mini { background:var(--surface); border:2px solid var(--accent2); border-radius:18px; padding:1.1rem 1.2rem; margin:.4rem 0 1.2rem; text-align:left; }
+  .card-mini .cat { color:var(--muted); font-size:.8rem; font-weight:700; margin-bottom:.4rem; }
+  .card-mini .txt { font-size:1.15rem; font-weight:700; line-height:1.35; }
+  .note { color:var(--muted); font-size:.95rem; line-height:1.4; }
+  .ok { color:#4ade80; font-weight:700; margin-top:.7rem; min-height:1.3rem; }
+  .scores { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:center; margin-top:1.2rem; }
+  .sc-chip { padding:.35rem .9rem; border-radius:999px; background:var(--surface2); font-size:.9rem; font-weight:700; }
+  .prow { display:flex; align-items:center; gap:.8rem; background:var(--surface); border:2px solid var(--border); border-radius:14px; padding:.8rem 1.1rem; margin-bottom:.6rem; font-size:1.1rem; font-weight:800; }
+  .prow.first { border-color:var(--gold); background:rgba(245,158,11,.12); }
+  .prow .nm { flex:1; text-align:left; }
+  .link { background:none; border:none; color:var(--muted); text-decoration:underline; font-size:.85rem; margin-top:1rem; }
+  .vote-btn { display:flex; align-items:flex-start; gap:.8rem; width:100%; text-align:left; padding:.95rem 1rem; margin-bottom:.7rem; border-radius:16px; border:3px solid var(--border); background:var(--surface); color:var(--text); font-size:1.05rem; font-weight:600; line-height:1.35; }
+  .vote-btn .ltr { flex-shrink:0; min-width:2rem; text-align:center; padding:.1rem .5rem; border-radius:10px; background:var(--accent); color:#fff; font-weight:800; }
+  .vote-btn.sel { border-color:var(--gold); background:rgba(245,158,11,.14); }
+  .vote-btn.mine { opacity:.45; }
+  .vote-btn:disabled { cursor:not-allowed; }
+</style>
+</head>
+<body>
+
+<!-- Katıl -->
+<div id="s-join" class="screen active">
+  <h1 class="brand">🎭 Yusuf Show</h1>
+  <div class="sub">TV'deki kodu gir ve adını yaz</div>
+  <input id="in-code" class="code" maxlength="5" placeholder="KOD" autocapitalize="characters" autocomplete="off">
+  <input id="in-name" maxlength="16" placeholder="Adın" autocomplete="nickname">
+  <div class="err" id="join-err"></div>
+  <button class="btn" id="btn-join" onclick="join()">Katıl</button>
+</div>
+
+<!-- Oyun (takım seçimi + bekleme + oyun + bitiş) -->
+<div id="s-main" class="screen">
+  <div class="hdr" id="hdr"></div>
+  <div class="main" id="panel"></div>
+  <div class="scores" id="scores"></div>
+  <button class="link" onclick="leave()">Oyundan çık</button>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="shared.js"></script>
+<script>
+let db, ref = null, pref = null, D = null, code = null, pid = null, myName = '', lastKey = null, connRef = null;
+
+function $(id) { return document.getElementById(id); }
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); }
+function pidKey(c) { return 'cc_pid_' + c; }
+
+// ───────── Katılma ─────────
+function join() {
+  const c = $('in-code').value.trim().toUpperCase(), name = $('in-name').value.trim();
+  if (c.length < 5) return $('join-err').textContent = 'Kodu eksiksiz gir.';
+  if (!name) return $('join-err').textContent = 'Adını yaz.';
+  $('join-err').textContent = ''; $('btn-join').disabled = true;
+  sessionRef(db, c).once('value').then(snap => {
+    const d = snap.val();
+    if (!d || d.type !== 'comedy') throw new Error('Bu kodla bir oturum bulunamadı.');
+    if (d.status === 'ended') throw new Error('Bu oyun bitmiş.');
+    let id = localStorage.getItem(pidKey(c));
+    const existing = id && (d.players || {})[id];
+    if (!existing) id = genId();
+    const p = sessionRef(db, c).child('players/' + id);
+    const write = existing ? p.update({ name, online: true })
+                           : p.set({ name, joinedAt: firebase.database.ServerValue.TIMESTAMP, online: true });
+    return write.then(() => { localStorage.setItem(pidKey(c), id); localStorage.setItem('cc_last', JSON.stringify({ code: c, name })); enter(c, id, name); });
+  }).catch(e => $('join-err').textContent = e.message).finally(() => $('btn-join').disabled = false);
+}
+
+function enter(c, id, name) {
+  if (ref) ref.off();
+  code = c; pid = id; myName = name; lastKey = null;
+  ref = sessionRef(db, c); pref = ref.child('players/' + id);
+  if (connRef) connRef.off();
+  connRef = db.ref('.info/connected');
+  connRef.on('value', s => { if (s.val() === true) { pref.child('online').onDisconnect().set(false); pref.child('online').set(true); } });
+  ref.on('value', snap => { D = snap.val(); render(); }, err => { $('panel').innerHTML = '<div class="note">Bağlantı hatası: ' + esc(err.message) + '</div>'; });
+  show('s-main');
+}
+
+function leave() {
+  if (!confirm('Oyundan çıkmak istiyor musun?')) return;
+  if (pref) { pref.onDisconnect().cancel(); pref.remove(); }
+  backToJoin();
+}
+function backToJoin() {
+  if (ref) ref.off(); if (connRef) connRef.off();
+  if (code) localStorage.removeItem(pidKey(code));
+  localStorage.removeItem('cc_last');
+  ref = pref = connRef = null; D = null; code = pid = null;
+  show('s-join');
+}
+
+// ───────── Render ─────────
+function setPanel(key, html) { if (key !== lastKey) { lastKey = key; $('panel').innerHTML = html; return true; } return false; }
+
+function render() {
+  if (!D) { setPanel('gone', '<div class="big">Oturum kapandı</div><div class="note">Sunucu oyunu sildi.</div><button class="btn" style="margin-top:1.2rem" onclick="backToJoin()">Başa dön</button>'); $('hdr').innerHTML = ''; $('scores').innerHTML = ''; return; }
+  const me = (D.players || {})[pid];
+  if (!me) return backToJoin();               // sunucu/başka biri çıkardı
+  const solo = isSolo(D), us = units(D), scores = D.scores || {};
+  const myUnit = unitOf(D, pid), myU = us.find(u => u.id === myUnit);
+
+  // Üst şerit
+  $('hdr').style.borderColor = myU ? unitColor(myU) : 'var(--border)';
+  $('hdr').innerHTML = `<div class="who">${esc(me.name)}<small>${solo ? '👤 Bireysel' : myU ? unitEmoji(D, myU) + ' ' + esc(myU.name) : 'Takım seçilmedi'}</small></div>` +
+    (myU ? `<div class="sc">${scores[myUnit] || 0}</div>` : '');
+  $('scores').innerHTML = us.map(u => `<span class="sc-chip" style="border:2px solid ${unitColor(u)}">${esc(u.name)} · ${scores[u.id] || 0}</span>`).join('');
+
+  if (D.status === 'ended') {
+    const sorted = us.map(u => ({ ...u, score: scores[u.id] || 0 })).sort((a, b) => b.score - a.score);
+    const medals = ['🥇', '🥈', '🥉'];
+    setPanel('ended' + JSON.stringify(sorted.map(u => u.score)), '<div class="big glow">Oyun bitti!</div>' +
+      sorted.map((u, i) => `<div class="prow ${i === 0 ? 'first' : ''}"><span>${medals[i] || (i + 1) + '.'}</span><span class="nm">${esc(u.name)}</span><span>${u.score}</span></div>`).join(''));
+    return;
+  }
+
+  // Takım seçimi (yalnızca takım modunda)
+  if (!solo && !myU) { renderTeamPick(us); return; }
+
+  if (D.status === 'lobby') {
+    setPanel('lobby', `<div class="big glow">Hazırsın!</div><div class="note">Sunucu oyunu başlatınca burada kart görünecek.<br>TV ekranına bak 📺</div>` +
+      (solo ? '' : '<button class="btn ghost" onclick="changeTeam()">Takım değiştir</button>'));
+    return;
+  }
+
+  // Oyun sırasında
+  if (!D.deck || D.cardIndex == null || !D.deck[D.cardIndex]) { setPanel('loading', '<div class="note">Yükleniyor…</div>'); return; }
+  const card = D.deck[D.cardIndex], phase = D.phase, cm = D.cardMode;
+  const speaker = (D.speakers || {})[myUnit], isSpeaker = speaker === pid;
+  const speakerName = speaker ? ((D.players || {})[speaker] || {}).name : null;
+  const cardHtml = `<div class="card-mini"><div class="cat">${esc(card.category)}</div><div class="txt">${esc(card.text)}</div></div>`;
+  const base = `play|${D.cardIndex}|${phase}`;
+
+  if (phase === 'answer') {
+    if (!speaker) {
+      setPanel(base + '|late', `<div class="big">Sonraki kartta katılırsın ⏳</div>${cardHtml}`);
+    } else if (isSpeaker && cm === 'typed') {
+      const prev = ((D.answers || {})[myUnit] || {}).text || '';
+      setPanel(base + '|typed', `<div class="big glow">Sıra sende! ✍️</div>${cardHtml}
+        <textarea id="ans" maxlength="140" placeholder="Cevabını yaz…">${esc(prev)}</textarea>
+        <button class="btn" id="btn-send" onclick="sendAnswer()">Gönder</button><div class="ok" id="sent">${prev ? '✅ Gönderildi — değiştirip tekrar gönderebilirsin' : ''}</div>`);
+    } else if (isSpeaker) {
+      setPanel(base + '|spoken', `<div class="big glow">Sıra sende! 🎤</div>${cardHtml}<div class="note">${card.type === 'action' ? 'Hepsini canlandır — herkes seni izliyor!' : 'Sunucu söz verince cevabını yüksek sesle söyle!'}</div>`);
+    } else {
+      setPanel(base + '|wait|' + speaker, `<div class="big">${esc(speakerName || 'Takım arkadaşın')} ${cm === 'typed' ? 'yazıyor ✍️' : 'sırada 🎤'}</div>${cardHtml}<div class="note">Takımını destekle! 🙌</div>`);
+    }
+  } else if (phase === 'reveal') {
+    setPanel(base, `<div class="big">Cevaplar TV'de! 📺</div>${cardHtml}<div class="note">Cevapları oku, birazdan oylama başlayacak.</div>`);
+  } else if (phase === 'vote') {
+    const order = Object.values(D.order || {}), myVote = (D.votes || {})[pid] || '';
+    if (!order.length) { setPanel(base + '|none', '<div class="big">Kimse cevap yazmadı</div><div class="note">Sunucu devam edecek…</div>'); return; }
+    setPanel(base + '|' + myVote, `<div class="big" style="font-size:1.6rem">🗳️ En komik hangisi?</div>
+      <div class="note" style="margin-bottom:.8rem">Kendi ${solo ? '' : 'takımının '}cevabına oy veremezsin.</div>` +
+      order.map((uid, i) => {
+        const mine = uid === myUnit, a = (D.answers || {})[uid] || {};
+        return `<button class="vote-btn ${uid === myVote ? 'sel' : ''} ${mine ? 'mine' : ''}" ${mine ? 'disabled' : `onclick="vote('${uid}')"`}>
+          <span class="ltr">${LETTERS[i]}</span><span>${esc(a.text)}${mine ? ' <em>(senin)</em>' : ''}</span></button>`;
+      }).join('') + `<div class="ok">${myVote ? '✅ Oyun kaydedildi — değiştirebilirsin' : ''}</div>`);
+  } else if (phase === 'judge') {
+    setPanel(base, `<div class="big">Sunucu karar veriyor… ⚖️</div>${cardHtml}<div class="note">En komik/yaratıcı olan seçiliyor.</div>`);
+  } else { // result
+    const winners = D.winners || {}, wn = us.filter(u => winners[u.id]);
+    const msg = !wn.length ? '<div class="big">Bu kartta puan yok</div>'
+      : winners[myUnit] ? `<div class="big glow">🏆 ${solo ? 'Puan senin!' : 'Takımın puan aldı!'}</div>`
+      : `<div class="big">${esc(wn.map(u => u.name).join(', '))} puan aldı</div>`;
+    setPanel(base + '|' + wn.map(u => u.id).join(','), msg + '<div class="note">Sıradaki kart birazdan…</div>');
+  }
+}
+
+function renderTeamPick(us) {
+  const counts = {}; entries(D.players).forEach(([, p]) => { if (p.team) counts[p.team] = (counts[p.team] || 0) + 1; });
+  const key = 'pick|' + us.map(t => t.id + (counts[t.id] || 0)).join(',');
+  setPanel(key, '<div class="big" style="font-size:1.6rem">Takımını seç</div>' + us.map(t =>
+    `<button class="team-btn" style="border-color:${unitColor(t)}" onclick="pickTeam('${t.id}')"><span>${unitEmoji(D, t)} ${esc(t.name)}</span><small>${counts[t.id] || 0} kişi</small></button>`).join(''));
+}
+function pickTeam(tid) { pref.update({ team: tid }); }
+function changeTeam() { pref.update({ team: null }); }
+
+function sendAnswer() {
+  const text = $('ans').value.trim();
+  if (!text) return;
+  ref.child('phase').once('value').then(s => {
+    if (s.val() !== 'answer') { $('sent').textContent = '⏱️ Süre doldu, cevap alınamadı.'; return; }
+    return ref.child('answers/' + unitOf(D, pid)).set({ text, pid, at: firebase.database.ServerValue.TIMESTAMP })
+      .then(() => { $('sent').textContent = '✅ Gönderildi — değiştirip tekrar gönderebilirsin'; });
+  }).catch(e => { $('sent').textContent = 'Hata: ' + e.message; });
+}
+
+function vote(uid) {
+  if (!D || D.phase !== 'vote' || uid === unitOf(D, pid)) return;
+  ref.child('votes/' + pid).set(uid);
+}
+
+// ───────── Başlangıç ─────────
+(function init() {
+  try { db = initDb(); } catch (e) { $('join-err').textContent = 'Firebase yüklenemedi: ' + e.message; return; }
+  const q = new URLSearchParams(location.search).get('c');
+  const last = JSON.parse(localStorage.getItem('cc_last') || 'null');
+  if (q) $('in-code').value = q.toUpperCase().slice(0, 5);
+  if (last) $('in-name').value = last.name || '';
+  // Aynı oturuma geri dönüş (sayfa yenilendi / telefon uyandı)
+  const rc = q ? q.toUpperCase() : last && last.code;
+  if (rc && localStorage.getItem(pidKey(rc)) && last && last.name) {
+    $('in-code').value = rc; join();
+  }
+})();
+</script>
+</body>
+</html>
