@@ -18,11 +18,13 @@ export function openPage(name) {
   window.location.href = import.meta.env.BASE_URL + name
 }
 
-// Logo Bilmece oturumuna QR ile katılma adresi: sayfa gerçek bir adresten (ör. yerel ağ IP'si) açıldıysa o,
-// localhost / APK ise config.js'teki yayın adresi kullanılır.
-export function logoJoinUrl(code) {
+// Telefonların QR ile oturuma katılma adresi: sayfa gerçek bir adresten (ör. yerel ağ IP'si) açıldıysa o,
+// localhost / APK ise config.js'teki yayın adresi kullanılır. param: 'logo' | 'oknok'
+function joinUrl(param, code) {
   const { protocol, hostname, origin } = window.location
   const isLocal = protocol === 'file:' || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(hostname)
   const base = isLocal ? publicBase() : origin + import.meta.env.BASE_URL
-  return base ? base + '?logo=' + encodeURIComponent(code) : ''
+  return base ? base + '?' + param + '=' + encodeURIComponent(code) : ''
 }
+export const logoJoinUrl  = (code) => joinUrl('logo', code)
+export const oknokJoinUrl = (code) => joinUrl('oknok', code)

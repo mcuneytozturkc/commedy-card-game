@@ -17,13 +17,16 @@ function markSplashSeen() {
 
 export default function App() {
   const [splash, setSplash] = useState(() => !splashSeen())
-  // QR ile gelen oyuncu: ?logo=KOD → doğrudan Logo Bilmece katılma ekranı
+  // QR ile gelen oyuncu: ?logo=KOD ya da ?oknok=KOD → doğrudan ilgili oyunun katılma ekranı
   const [view, setView] = useState(() => {
     try {
-      const code = new URLSearchParams(window.location.search).get('logo')
-      if (code && /^[A-Za-z0-9]{6}$/.test(code)) {
-        window.history.replaceState(null, '', window.location.pathname)
-        return { name: 'logoquiz', joinCode: code.toUpperCase() }
+      const sp = new URLSearchParams(window.location.search)
+      for (const [param, name] of [['logo', 'logoquiz'], ['oknok', 'oknok']]) {
+        const code = sp.get(param)
+        if (code && /^[A-Za-z0-9]{6}$/.test(code)) {
+          window.history.replaceState(null, '', window.location.pathname)
+          return { name, joinCode: code.toUpperCase() }
+        }
       }
     } catch { /* yoksay */ }
     return { name: 'home' }
@@ -70,7 +73,7 @@ export default function App() {
     return <LogoQuiz key={view.joinCode || 'lq'} joinCode={view.joinCode} onHome={goHome} />
   }
   if (view.name === 'oknok') {
-    return <OkNok onHome={goHome} />
+    return <OkNok key={view.joinCode || 'ok'} joinCode={view.joinCode} onHome={goHome} />
   }
   if (view.name === 'submitqr') {
     return <SubmitQr onHome={goHome} />

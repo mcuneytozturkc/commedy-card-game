@@ -496,6 +496,20 @@ export default function LogoQuiz({ onHome, joinCode }) {
               )
             })}
           </div>
+          {revealed2 && (() => {
+            const right = onlinePlayers.filter(p => guesses[p]?.correct === true)
+            return (
+              <div className="lq-submitted" style={{ maxWidth: 520, marginBottom: 12, ...(right.length ? {} : { background: 'rgba(239,68,68,.1)', borderColor: 'rgba(239,68,68,.3)', color: '#fca5a5' }) }}>
+                {right.length ? `✅ Doğru bilenler: ${right.join(', ')}` : 'Henüz doğru bilen işaretlenmedi'}
+              </div>
+            )
+          })()}
+          <div className="lq-player-list" style={{ marginBottom: 12 }}>
+            <div className="pl-label">Puan durumu</div>
+            {[...onlinePlayers].sort((a, b) => (data.players[b]?.score || 0) - (data.players[a]?.score || 0)).map(p => (
+              <span className="lq-chip" key={p}>👤 {p} · {data.players[p]?.score || 0}</span>
+            ))}
+          </div>
           <div className="lq-action-row">
             {!revealed2
               ? <button className="lq-btn lq-btn-primary" onClick={hostReveal}>🔍 Logoyu Göster</button>
