@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "sync:android": "vite build && npx cap copy android",
+    "sync:android": "vite build && npx cap copy android && node scripts/strip-admin.mjs",
     "open:android": "npx cap open android"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
     "@capacitor/cli": "^6.2.1",
     "@capacitor/core": "^6.2.1",
     "firebase": "^10.14.1",
+    "qrcode-generator": "^1.4.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

@@ -92,6 +92,18 @@
   .prow { display:flex; align-items:center; gap:1rem; background:var(--surface); border:2px solid var(--border); border-radius:16px; padding:.9rem 1.4rem; font-size:1.3rem; font-weight:800; }
   .prow.first { border-color:var(--gold); background:rgba(245,158,11,.12); }
   .prow .nm { flex:1; text-align:left; }
+  /* ---- TV kumanda: odak halkası, onay penceresi ---- */
+  :focus-visible { outline:4px solid var(--gold); outline-offset:3px; }
+  input:focus-visible { outline:none; border-color:var(--gold) !important; box-shadow:0 0 0 3px rgba(245,158,11,.3); }
+  .tile:focus-visible { transform:translateY(-3px); box-shadow:0 0 0 4px rgba(245,158,11,.35); }
+  #modal { position:fixed; inset:0; background:rgba(5,5,12,.85); display:none; align-items:center; justify-content:center; z-index:20; }
+  #modal.show { display:flex; }
+  .modal-box { background:var(--surface); border:2px solid var(--accent2); border-radius:22px; padding:2rem 2.4rem; min-width:24rem; max-width:40rem; text-align:center; }
+  .modal-box p { font-size:1.35rem; font-weight:800; line-height:1.4; margin-bottom:1.5rem; }
+  .modal-actions { display:flex; gap:1rem; justify-content:center; }
+  .submit-qr { display:flex; align-items:center; gap:1.2rem; margin-top:1.1rem; }
+  .submit-qr .qr-mini { background:#fff; border-radius:12px; padding:.4rem; width:7.5rem; height:7.5rem; flex-shrink:0; }
+  .submit-qr .qr-mini svg { width:100%; height:100%; }
   #toast { position:fixed; bottom:1.2rem; left:50%; transform:translateX(-50%); background:#ef4444; color:#fff; padding:.7rem 1.4rem; border-radius:12px; font-weight:700; display:none; z-index:10; }
 </style>
 </head>
@@ -99,6 +111,7 @@
 
 <!-- ============ KURULUM ============ -->
 <div id="s-setup" class="screen active">
+  <div style="align-self:flex-start;margin-bottom:.8rem"><button class="btn ghost" id="btn-home" onclick="goHome()">← Ana Sayfa</button></div>
   <h1 class="brand">🎭 Yusuf Show</h1>
   <div class="sub">TV / Sunucu ekranı — oyunculara telefonlarından katılacak</div>
 
@@ -142,10 +155,13 @@
       <button class="chip-btn" onclick="setCardCount(0)" id="cc0">Hepsi</button>
     </div>
     <label style="display:flex;align-items:center;gap:.6rem;margin-top:1rem;color:var(--muted);font-size:.95rem;cursor:pointer"><input type="checkbox" id="inc-approved" checked style="width:1.1rem;height:1.1rem"> Oyuncuların gönderip admin onayından geçen kartları da kat</label>
-    <a href="submit.html" target="_blank" style="display:inline-block;margin-top:.8rem;color:var(--accent2);font-size:.9rem">✍️ Kart / soru gönderme sayfası</a>
+    <div class="submit-qr" id="submit-qr-wrap" style="display:none">
+      <div class="qr-mini" id="submit-qr"></div>
+      <div style="font-size:.9rem;color:var(--muted)">✍️ Kendi kartını / sorunu göndermek için telefonla okut. Admin onaylarsa oyuna eklenir.<div id="submit-url" style="margin-top:.3rem;word-break:break-all"></div></div>
+    </div>
   </div>
 
-  <button class="btn" style="margin-top:1.5rem; font-size:1.25rem; padding:1rem 2.6rem" onclick="createSession()">Oturum Oluştur ▶</button>
+  <button class="btn" id="btn-create" style="margin-top:1.5rem; font-size:1.25rem; padding:1rem 2.6rem" onclick="createSession()">Oturum Oluştur ▶</button>
 </div>
 
 <!-- ============ LOBİ ============ -->
@@ -163,7 +179,7 @@
   <div class="teams-grid" id="lobby-teams"></div>
   <div class="footer-bar">
     <div class="hint" id="lobby-hint"></div>
-    <button class="btn ghost" onclick="cancelSession()">İptal</button>
+    <button class="btn ghost" id="btn-cancel" onclick="cancelSession()">İptal</button>
     <button class="btn" id="btn-start" onclick="startGame()" disabled>Oyunu Başlat ▶</button>
   </div>
 </div>
@@ -190,8 +206,13 @@
 <div id="s-end" class="screen">
   <h1 class="brand" style="font-size:3.4rem">🏆 Oyun Bitti!</h1>
   <div class="podium" id="podium"></div>
-  <button class="btn" onclick="newGame()">Yeni Oyun</button>
+  <div style="display:flex;gap:1rem">
+    <button class="btn" id="btn-newgame" onclick="newGame()">Yeni Oyun</button>
+    <button class="btn ghost" onclick="goHome()">Ana Sayfa</button>
+  </div>
 </div>
+
+<div id="modal"><div class="modal-box"><p id="modal-msg"></p><div class="modal-actions"><button class="btn ghost" id="modal-no"></button><button class="btn" id="modal-yes"></button></div></div></div>
 
 <div id="toast"></div>
 
@@ -199,6 +220,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script src="cards.js"></script>
+<script src="config.js"></script>
 <script src="shared.js"></script>
 <script>
 let db, ref = null, D = null, code = null;
@@ -206,7 +228,7 @@ let setup = { mode: 'typed', teamMode: 'team', teamCount: 2, cardCount: 12, name
 let lobbyBuiltFor = null;
 
 function $(id) { return document.getElementById(id); }
-function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); }
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); setTimeout(focusDefault, 0); }
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = 'none', 4000); }
 
 // ───────── Kurulum ─────────
@@ -259,7 +281,7 @@ function checkResume() {
 }
 function resumeSession() { attach(localStorage.getItem('cc_host_code')); $('resume').classList.remove('show'); }
 function forgetSession() { localStorage.removeItem('cc_host_code'); $('resume').classList.remove('show'); }
-function cancelSession() { if (ref) ref.remove(); detach(); }
+function cancelSession() { askConfirm('Oturum iptal edilsin mi? Oyuncuların bağlantısı kopar.', () => { if (ref) ref.remove(); detach(); }, 'Evet, iptal et', 'Geri dön'); }
 function newGame() { if (ref) ref.remove(); detach(); }
 
 // ───────── Render ─────────
@@ -274,12 +296,12 @@ function modeLabel(m) { return m === 'typed' ? '📱 Telefondan yazılıyor' : '
 function renderLobby() {
   show('s-lobby');
   if (lobbyBuiltFor !== code) {
-    lobbyBuiltFor = code;
+    lobbyBuiltFor = code; lobbyStartEnabled = false;
     $('lobby-code').textContent = code;
     const url = playUrl(code);
     $('lobby-url').textContent = url;
     const prob = joinUrlProblem(), fw = $('file-warn');
-    fw.innerHTML = prob ? '⚠️ ' + esc(prob) + ' Siteyi internete yayınlayıp (GitHub Pages / Netlify) adresini <code>shared.js</code> içindeki <code>PUBLIC_BASE_URL</code> alanına yaz; ya da aynı Wi-Fi\'de bilgisayarının yerel IP adresinden aç.' : '';
+    fw.innerHTML = prob ? '⚠️ ' + esc(prob) + ' Siteyi internete yayınlayıp adresini <code>public/config.js</code> içindeki <code>YS_PUBLIC_BASE_URL</code> alanına yaz; ya da aynı Wi-Fi\'de bilgisayarının yerel IP adresinden aç.' : '';
     fw.classList.toggle('show', !!prob);
     const qrEl = $('qr');
     try { const qr = qrcode(0, 'M'); qr.addData(url); qr.make(); qrEl.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true }); }
@@ -295,6 +317,7 @@ function renderLobby() {
       (players.length ? players.map(p => `<span class="pchip ${p.online ? '' : 'off'}">${esc(p.name)}</span>`).join('') : '<span class="empty">Henüz kimse yok…</span>') + '</div>';
     $('btn-start').disabled = players.length < 2;
     $('lobby-hint').textContent = players.length < 2 ? 'En az 2 oyuncu gerekli.' : `${players.length} oyuncu hazır`;
+    lobbyFocus();
     return;
   }
   const teams = teamList(D);
@@ -309,6 +332,7 @@ function renderLobby() {
   const unassigned = players.filter(p => !p.team).length;
   const ready = teams.every(t => teamMembers(D, t.id).length > 0);
   $('btn-start').disabled = !ready;
+  lobbyFocus();
   $('lobby-hint').textContent = !players.length ? 'Oyuncular bekleniyor…'
     : !ready ? 'Her takımda en az 1 oyuncu olmalı.'
     : `${players.length} oyuncu hazır` + (unassigned ? ` (${unassigned} kişi henüz takım seçmedi)` : '');
@@ -359,12 +383,14 @@ function renderGame() {
       if (phase === 'result' && winners[u.id]) cls.push('win');
       const key = phase === 'judge' && sp && i < 9 ? `<span class="key">[${i + 1}]</span>` : '';
       const crown = phase === 'result' && winners[u.id] ? '🏆 ' : '';
-      return `<div class="${cls.join(' ')}" style="border-color:${unitColor(u)}" ${phase === 'judge' && sp ? `onclick="award('${u.id}')"` : ''}>
+      return `<div class="${cls.join(' ')}" style="border-color:${unitColor(u)}" ${phase === 'judge' && sp ? `tabindex="0" role="button" onclick="award('${u.id}')"` : ''}>
         <div class="th"><span>${crown}${unitEmoji(D, u)} ${esc(u.name)} ${key}</span><span class="score">${(D.scores || {})[u.id] || 0}</span></div>
         <div class="stat">${stat}</div><div class="ans">${ans}</div></div>`;
     }).join('');
   }
+  const hadFocus = grid.contains(document.activeElement) ? [...grid.children].indexOf(document.activeElement.closest('.tile')) : -1;
   grid.innerHTML = html;
+  if (hadFocus >= 0 && grid.children[hadFocus] && grid.children[hadFocus].tabIndex >= 0) grid.children[hadFocus].focus();
 
   const last = D.cardIndex + 1 >= D.deck.length;
   const main = $('btn-main'), none = $('btn-none'), hint = $('g-hint');
@@ -389,6 +415,7 @@ function renderGame() {
     const wn = us.filter(u => winners[u.id]).map(u => u.name);
     hint.textContent = wn.length ? `Puan alan: ${wn.join(', ')}` : 'Bu kartta puan verilmedi.';
   }
+  gameFocus();
 }
 
 function renderEnd() {
@@ -448,23 +475,120 @@ function award(uid) {
   ref.update({ phase: 'result', winners: uid === 'none' ? null : { [uid]: true } });
 }
 function endGame(confirmFirst) {
-  if (confirmFirst && !confirm('Oyun bitirilsin mi?')) return;
+  if (confirmFirst) { askConfirm('Oyun bitirilsin mi?', () => ref.update({ status: 'ended' }), 'Evet, bitir', 'Devam et'); return; }
   ref.update({ status: 'ended' });
 }
 
+// ───────── TV kumandası: odak, ok tuşları, onay penceresi, Geri ─────────
+let modalYes = null, modalPrevFocus = null, lobbyStartEnabled = false;
+function modalOpen() { return $('modal').classList.contains('show'); }
+function askConfirm(msg, onYes, yesLabel, noLabel) {
+  $('modal-msg').textContent = msg; $('modal-yes').textContent = yesLabel || 'Evet'; $('modal-no').textContent = noLabel || 'Vazgeç';
+  modalYes = onYes; modalPrevFocus = document.activeElement;
+  $('modal').classList.add('show'); $('modal-no').focus();
+}
+function closeModal() {
+  $('modal').classList.remove('show'); modalYes = null;
+  if (modalPrevFocus && document.contains(modalPrevFocus) && modalPrevFocus.getClientRects().length) modalPrevFocus.focus(); else focusDefault();
+}
+$('modal-yes').onclick = () => { const f = modalYes; closeModal(); if (f) f(); };
+$('modal-no').onclick = closeModal;
+
+function goHome() { location.href = './'; }
+// Geri: açık oturum varsa sor (oturum açık kalır, geri dönünce "Devam et" ile sürer); yoksa ana sayfaya
+function onBack() {
+  if (ref && D && D.status !== 'ended') askConfirm('Ana sayfaya dönülsün mü? Oturum açık kalır, geri gelip devam edebilirsin.', goHome, 'Ana sayfaya dön', 'Devam et');
+  else goHome();
+}
+history.pushState({ ysTv: 1 }, '');
+window.addEventListener('popstate', () => {
+  if (ref && D && D.status !== 'ended') { history.pushState({ ysTv: 1 }, ''); if (!modalOpen()) onBack(); }
+  else history.back();
+});
+
+function focusables(root) { return [...root.querySelectorAll('button,a[href],input,[tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length > 0); }
+function focusDefault() {
+  if (modalOpen()) return;
+  const scr = document.querySelector('.screen.active'); if (!scr) return;
+  if (scr.id === 's-game') { gameFocus(); return; }
+  const a = document.activeElement;
+  if (a && a !== document.body && scr.contains(a) && !a.disabled && a.getClientRects().length) return;
+  let el = $({ 's-setup': 'btn-create', 's-lobby': 'btn-start', 's-end': 'btn-newgame' }[scr.id]);
+  if (!el || el.disabled || !el.getClientRects().length) el = focusables(scr)[0];
+  if (el) el.focus();
+}
+// Oyun ekranında odak kaybolduysa mantıklı yere koy (sunucu sırasıyla ilerleyebilsin)
+function gameFocus() {
+  if (modalOpen()) return;
+  const a = document.activeElement;
+  if (a && a !== document.body && a.getClientRects().length && $('s-game').contains(a)) return;
+  const first = D && D.phase === 'judge' ? $('g-tiles').querySelector('.tile[tabindex="0"]') : null;
+  const main = $('btn-main'), none = $('btn-none');
+  const el = first || (main.style.display !== 'none' ? main : null) || (none.style.display !== 'none' ? none : null);
+  if (el) el.focus();
+}
+function lobbyFocus() {
+  const en = !$('btn-start').disabled;
+  if (en && !lobbyStartEnabled && (document.activeElement === $('btn-cancel') || document.activeElement === document.body)) $('btn-start').focus();
+  lobbyStartEnabled = en;
+  focusDefault();
+}
+function moveFocus(dir, from) {
+  const root = modalOpen() ? $('modal') : document.querySelector('.screen.active');
+  const list = focusables(root), cur = from || document.activeElement;
+  if (!list.length) return;
+  if (!list.includes(cur)) { list[0].focus(); return; }
+  const c = cur.getBoundingClientRect(), cx = c.left + c.width / 2, cy = c.top + c.height / 2;
+  let best = null, bs = Infinity;
+  list.forEach(el => {
+    if (el === cur) return;
+    const r = el.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
+    const prim = dir === 'right' ? dx : dir === 'left' ? -dx : dir === 'down' ? dy : -dy;
+    const orth = (dir === 'left' || dir === 'right') ? Math.abs(dy) : Math.abs(dx);
+    if (prim < 4) return;
+    const sc = prim + orth * 2;
+    if (sc < bs) { bs = sc; best = el; }
+  });
+  if (best) { best.focus(); best.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+}
+const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
 document.addEventListener('keydown', e => {
-  if (!D || D.status !== 'playing' || /input|textarea/i.test(e.target.tagName)) return;
-  if (e.code === 'Space' || e.key === 'Enter') { e.preventDefault(); if (D.phase !== 'judge') mainAction(); return; }
-  if (D.phase === 'judge') {
+  const t = e.target, isText = /^(input|textarea)$/i.test(t.tagName) && t.type !== 'checkbox';
+  if (ARROWS[e.key]) {
+    if (isText && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return; // imleç
+    e.preventDefault(); moveFocus(ARROWS[e.key]); return;
+  }
+  if (isText) { if (e.key === 'Enter') { e.preventDefault(); t.blur(); moveFocus('down', t); } return; }
+  if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack' || e.key === 'BrowserBack') {
+    e.preventDefault(); if (modalOpen()) closeModal(); else onBack(); return;
+  }
+  if (e.key === 'Enter' || e.code === 'Space') {
+    if (modalOpen() || t.tagName === 'BUTTON') return; // düğmeler kendi tıklamasını yapar
+    if (t.tagName === 'INPUT' && t.type === 'checkbox') { if (e.key === 'Enter') { e.preventDefault(); t.click(); } return; }
+    if (t.getAttribute && t.getAttribute('tabindex') === '0') { e.preventDefault(); t.click(); return; }
+    if (D && D.status === 'playing' && D.phase !== 'judge') { e.preventDefault(); mainAction(); }
+    return;
+  }
+  if (D && D.status === 'playing' && D.phase === 'judge' && !modalOpen()) {
     if (e.key === '0') award('none');
     const n = parseInt(e.key, 10), us = units(D);
     if (n >= 1 && n <= us.length) award(us[n - 1].id);
   }
 });
 
+// Kart / soru gönderme sayfasının QR'ı (yazı telefondan yapılır)
+function renderSubmitQr() {
+  const url = submitUrl(), wrap = $('submit-qr-wrap');
+  if (!url) { wrap.style.display = 'none'; return; }
+  try { const qr = qrcode(0, 'M'); qr.addData(url); qr.make(); $('submit-qr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); $('submit-url').textContent = url; wrap.style.display = 'flex'; }
+  catch (e) { wrap.style.display = 'none'; }
+}
+
 // ───────── Başlangıç ─────────
 try { db = initDb(); renderSetup(); checkResume(); }
 catch (e) { toast('Firebase yüklenemedi: ' + e.message); renderSetup(); }
+renderSubmitQr();
+focusDefault();
 </script>
 </body>
 </html>

@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react'
 import Navbar from './Navbar.jsx'
 import { GAMES } from '../data/games.js'
 
-export default function Home({ onOpenGame, onOpenLogoQuiz, onOpenOkNok }) {
+export default function Home({ onOpenGame, onOpenLogoQuiz, onOpenOkNok, onOpenSubmit }) {
   const cardRefs = useRef([])
 
   useEffect(() => {
@@ -42,6 +42,14 @@ export default function Home({ onOpenGame, onOpenLogoQuiz, onOpenOkNok }) {
       emoji: '💑',
       name: 'Ok mu Nok mu?',
       desc: 'Hmm...',
+    },
+    {
+      id: '__submit__',
+      handler: onOpenSubmit,
+      borderColor: '#22c55e44',
+      emoji: '✍️',
+      name: 'Kart / Soru Gönder',
+      desc: 'QR ile telefonundan kendi kartını yolla',
     },
   ]
 

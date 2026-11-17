@@ -72,12 +72,17 @@ function pickSpeaker(D, uid, round) {
 // Aksiyon kartları (hareket) yazıyla cevaplanamaz → her zaman sesli/canlı
 function effectiveMode(mode, card) { return card && card.type === 'action' ? 'spoken' : mode; }
 // Telefonların açacağı sitenin yayınlanmış adresi (sonu "/" ile biter). Boşsa sayfanın kendi adresi kullanılır.
-// TV sayfası Android APK içinde (localhost) ya da bilgisayardan dosya/localhost olarak açılıyorsa MUTLAKA doldur,
-// örn: 'https://kullanici.github.io/commedy-card-game/'
-const PUBLIC_BASE_URL = '';
+// TV sayfası Android APK içinde (localhost) ya da bilgisayardan dosya/localhost olarak açılıyorsa MUTLAKA doldur.
+// Tek ayar yeri: public/config.js → window.YS_PUBLIC_BASE_URL = 'https://siten.com/';
+const PUBLIC_BASE_URL = (() => { const v = (typeof window !== 'undefined' && window.YS_PUBLIC_BASE_URL) || ''; return v && !v.endsWith('/') ? v + '/' : v; })();
 function playUrl(code) {
   const base = PUBLIC_BASE_URL || location.href.replace(/[^/]*([?#].*)?$/, '');
   return base + 'play.html?c=' + code;
+}
+// Kart / soru gönderme sayfasının adresi ('' = telefonlar ulaşamaz)
+function submitUrl() {
+  if (joinUrlProblem()) return '';
+  return (PUBLIC_BASE_URL || location.href.replace(/[^/]*([?#].*)?$/, '')) + 'submit.html';
 }
 // Telefonlar bu adrese ulaşamayacaksa nedenini döndürür (yoksa null)
 function joinUrlProblem() {
