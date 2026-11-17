@@ -104,6 +104,8 @@
   .submit-qr { display:flex; align-items:center; gap:1.2rem; margin-top:1.1rem; }
   .submit-qr .qr-mini { background:#fff; border-radius:12px; padding:.4rem; width:7.5rem; height:7.5rem; flex-shrink:0; }
   .submit-qr .qr-mini svg { width:100%; height:100%; }
+  .btn.ready { background:linear-gradient(135deg,#16a34a,#22c55e); animation:pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.06); } }
   #toast { position:fixed; bottom:1.2rem; left:50%; transform:translateX(-50%); background:#ef4444; color:#fff; padding:.7rem 1.4rem; border-radius:12px; font-weight:700; display:none; z-index:10; }
 </style>
 </head>
@@ -124,17 +126,10 @@
   <div class="panel">
     <h3>Kim yarışıyor?</h3>
     <div class="choice-row">
-      <button class="choice sel" id="tm-team" onclick="setTeamMode('team')"><b>👥 Takımlar</b><span>Oyuncular takım seçer. Her kartta her takımdan sıradaki kişi cevaplar.</span></button>
-      <button class="choice" id="tm-solo" onclick="setTeamMode('solo')"><b>👤 Bireysel</b><span>Herkes kendi adına yarışır. Her kartta herkes cevaplar, puan kişiye yazılır.</span></button>
+      <button class="choice sel" id="tm-solo" onclick="setTeamMode('solo')"><b>👤 Oyuncular</b><span>Herkes kendi adına yarışır, telefonundan katılır. En fazla 6 oyuncu.</span></button>
+      <button class="choice" id="tm-team" onclick="setTeamMode('team')"><b>👥 Takımlar</b><span>Oyuncular takım seçer, her kartta takımdan sıradaki kişi sahneye çıkar. Toplam en fazla 6 oyuncu.</span></button>
     </div>
-  </div>
-
-  <div class="panel">
-    <h3>Cevaplar nasıl verilecek?</h3>
-    <div class="choice-row">
-      <button class="choice sel" id="mode-typed" onclick="setMode('typed')"><b>📱 Telefondan yazılsın</b><span>Cevaplar TV'de anonim gösterilir, oyuncular telefonlarından oylar.</span></button>
-      <button class="choice" id="mode-spoken" onclick="setMode('spoken')"><b>🗣️ Sesli söylensin</b><span>Sunucu söz verir, oyuncular yüksek sesle söyler; kazananı sunucu seçer.</span></button>
-    </div>
+    <div style="margin-top:.9rem;color:var(--muted);font-size:.9rem;line-height:1.5">🎭 Tiyatral oyun: sıradaki canlı söyler/oynar. <b>2 taraf</b> varsa kazananı sunucu seçer; <b>3 ve üzeri</b> tarafta oyuncular telefonundan oy verir.</div>
   </div>
 
   <div class="panel" id="team-panel">
@@ -224,7 +219,7 @@
 <script src="shared.js"></script>
 <script>
 let db, ref = null, D = null, code = null;
-let setup = { mode: 'typed', teamMode: 'team', teamCount: 2, cardCount: 12, names: [...DEFAULT_TEAM_NAMES] };
+let setup = { mode: 'spoken', teamMode: 'solo', teamCount: 2, cardCount: 12, names: [...DEFAULT_TEAM_NAMES] };
 let lobbyBuiltFor = null;
 
 function $(id) { return document.getElementById(id); }
@@ -232,7 +227,6 @@ function show(id) { document.querySelectorAll('.screen').forEach(s => s.classLis
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = 'none', 4000); }
 
 // ───────── Kurulum ─────────
-function setMode(m) { setup.mode = m; $('mode-typed').classList.toggle('sel', m === 'typed'); $('mode-spoken').classList.toggle('sel', m === 'spoken'); }
 function setTeamMode(m) { saveNames(); setup.teamMode = m; renderSetup(); }
 function setTeamCount(n) { saveNames(); setup.teamCount = n; renderSetup(); }
 function setCardCount(n) { setup.cardCount = n; renderSetup(); }
@@ -245,7 +239,6 @@ function renderSetup() {
   $('team-panel').style.display = setup.teamMode === 'team' ? '' : 'none';
   $('team-inputs').innerHTML = Array.from({ length: setup.teamCount }, (_, i) =>
     `<input maxlength="20" value="${esc(setup.names[i])}" placeholder="${DEFAULT_TEAM_NAMES[i]}" style="border-left:6px solid ${UNIT_COLORS[i]}">`).join('');
-  setMode(setup.mode);
 }
 
 function createSession() {
@@ -291,7 +284,6 @@ function render() {
   else if (D.status === 'ended') renderEnd();
 }
 
-function modeLabel(m) { return m === 'typed' ? '📱 Telefondan yazılıyor' : '🗣️ Sesli söyleniyor'; }
 
 function renderLobby() {
   show('s-lobby');
@@ -308,15 +300,15 @@ function renderLobby() {
     catch (e) { qrEl.innerHTML = '<span style="color:#333;font-size:.8rem;text-align:center">QR yüklenemedi<br>kodu elle gir</span>'; }
   }
   const solo = isSolo(D), players = playerList(D);
-  $('lobby-teammode').textContent = solo ? '👤 Bireysel' : '👥 Takımlar';
-  $('lobby-mode').textContent = modeLabel(D.mode);
+  $('lobby-teammode').textContent = solo ? '👤 Oyuncular' : '👥 Takımlar';
+  $('lobby-mode').textContent = '🎭 Canlı sahne';
   const grid = $('lobby-teams');
   if (solo) {
     grid.style.gridTemplateColumns = '1fr';
-    grid.innerHTML = `<div class="tcol"><h4>👤 Oyuncular <span class="empty">(${players.length})</span></h4>` +
+    grid.innerHTML = `<div class="tcol"><h4>👤 Oyuncular <span class="empty">(${players.length} / ${MAX_PLAYERS})</span></h4>` +
       (players.length ? players.map(p => `<span class="pchip ${p.online ? '' : 'off'}">${esc(p.name)}</span>`).join('') : '<span class="empty">Henüz kimse yok…</span>') + '</div>';
     $('btn-start').disabled = players.length < 2;
-    $('lobby-hint').textContent = players.length < 2 ? 'En az 2 oyuncu gerekli.' : `${players.length} oyuncu hazır`;
+    $('lobby-hint').textContent = players.length < 2 ? 'En az 2 oyuncu gerekli.' : `${players.length} / ${MAX_PLAYERS} oyuncu hazır` + (players.length >= MAX_PLAYERS ? ' — oyun dolu' : '');
     lobbyFocus();
     return;
   }
@@ -335,59 +327,55 @@ function renderLobby() {
   lobbyFocus();
   $('lobby-hint').textContent = !players.length ? 'Oyuncular bekleniyor…'
     : !ready ? 'Her takımda en az 1 oyuncu olmalı.'
-    : `${players.length} oyuncu hazır` + (unassigned ? ` (${unassigned} kişi henüz takım seçmedi)` : '');
+    : `${players.length} / ${MAX_PLAYERS} oyuncu hazır` + (players.length >= MAX_PLAYERS ? ' — oyun dolu' : '') + (unassigned ? ` (${unassigned} kişi henüz takım seçmedi)` : '');
 }
 
 function curCard() { return D.deck && D.deck[D.cardIndex]; }
 function pname(pid) { const p = (D.players || {})[pid]; return p ? p.name : '—'; }
-function eligibleVoters() { return playerList(D).filter(p => unitOf(D, p.pid)); }
+// Bu kartta sahneye çıkan taraflar (takım ya da oyuncu)
+function performers() { const sp = D.speakers || {}; return units(D).filter(u => sp[u.id]); }
+// 2 taraf: sunucu seçer · 3 ve üzeri: oyuncular oy verir
+function useVote() { return performers().length > 2; }
+function eligibleVoters() { return playerList(D).filter(p => unitOf(D, p.pid) && p.online); }
+function voteStats() {
+  const perf = new Set(performers().map(u => u.id)), vs = eligibleVoters();
+  const done = vs.filter(p => { const t = (D.votes || {})[p.pid]; return t && perf.has(t) && t !== unitOf(D, p.pid); }).length;
+  return { done, total: vs.length };
+}
 
 function renderGame() {
   if (!D.deck || D.cardIndex == null || !curCard()) return;
   show('s-game');
-  const card = curCard(), us = units(D), phase = D.phase, cm = D.cardMode, solo = isSolo(D);
-  const answers = D.answers || {}, speakers = D.speakers || {}, winners = D.winners || {}, tally = D.tally || {};
+  const card = curCard(), us = units(D), phase = D.phase, solo = isSolo(D);
+  const speakers = D.speakers || {}, winners = D.winners || {}, tally = D.tally || {};
   $('g-num').textContent = `Kart ${D.cardIndex + 1} / ${D.deck.length}`;
-  $('g-mode').textContent = card.type === 'action' ? '🎭 Hareket kartı — canlı yap!' : modeLabel(D.mode);
+  $('g-mode').textContent = card.type === 'action' ? '🎭 Hareket kartı — canlı yap!' : '🎤 Canlı sahne — söyle / yap!';
   $('g-code').textContent = code;
   $('c-cat').textContent = card.category;
   $('c-txt').textContent = card.text;
-  $('c-kind').textContent = card.type === 'action' ? '🎭 Sıradaki oyuncu bunu canlandırır' : '';
+  $('c-kind').textContent = card.type === 'action' ? '🎭 Sıradaki oyuncu bunu canlandırır' : '🎤 Sıradaki oyuncu söyler / yapar';
 
   const grid = $('g-tiles');
-  let html;
-  if (phase === 'reveal' || phase === 'vote') {
-    // Anonim cevap kartları (A, B, C…) — sahipleri sonuçta açıklanır
-    const order = Object.values(D.order || {});
-    grid.style.gridTemplateColumns = `repeat(${Math.min(Math.max(order.length, 1), 4)}, 1fr)`;
-    html = order.length ? order.map((uid, i) =>
-      `<div class="tile"><div class="th"><span><span class="letter">${LETTERS[i]}</span></span></div><div class="ans">“${esc((answers[uid] || {}).text)}”</div></div>`).join('')
-      : '<div class="tile"><div class="ans">Kimse cevap yazmadı.</div></div>';
-  } else {
-    grid.style.gridTemplateColumns = `repeat(${Math.min(Math.max(us.length, 1), 4)}, 1fr)`;
-    html = us.map((u, i) => {
-      const sp = speakers[u.id], spName = sp ? pname(sp) : null, a = answers[u.id];
-      let stat = '', ans = '';
-      if (phase === 'answer') {
-        if (!sp) stat = solo ? '⏳ Sonraki kartta katılır' : '⚠️ Takımda oyuncu yok';
-        else if (cm === 'typed') stat = a ? (solo ? '✅ Cevapladı' : `✅ ${esc(spName)} cevapladı`) : (solo ? '✍️ Yazıyor…' : `✍️ ${esc(spName)} yazıyor…`);
-        else stat = solo ? '🎤 Sırada' : `🎤 Sıra: ${esc(spName)}`;
-      } else if (cm === 'typed') {
-        ans = a ? `“${esc(a.text)}”` : '<span style="color:var(--muted)">Cevap gelmedi</span>';
-        stat = `${a && !solo ? esc(pname(a.pid)) + ' · ' : ''}<span class="votes">${tally[u.id] || 0} oy</span>`;
-      } else {
-        ans = sp ? (solo ? '🗣️ Sesli söyledi' : `🗣️ ${esc(spName)} sesli söyledi`) : '';
-      }
-      const cls = ['tile'];
-      if (phase === 'judge' && sp) cls.push('clickable');
-      if (phase === 'result' && winners[u.id]) cls.push('win');
-      const key = phase === 'judge' && sp && i < 9 ? `<span class="key">[${i + 1}]</span>` : '';
-      const crown = phase === 'result' && winners[u.id] ? '🏆 ' : '';
-      return `<div class="${cls.join(' ')}" style="border-color:${unitColor(u)}" ${phase === 'judge' && sp ? `tabindex="0" role="button" onclick="award('${u.id}')"` : ''}>
-        <div class="th"><span>${crown}${unitEmoji(D, u)} ${esc(u.name)} ${key}</span><span class="score">${(D.scores || {})[u.id] || 0}</span></div>
-        <div class="stat">${stat}</div><div class="ans">${ans}</div></div>`;
-    }).join('');
-  }
+  grid.style.gridTemplateColumns = `repeat(${us.length <= 4 ? Math.max(us.length, 1) : 3}, 1fr)`;
+  const html = us.map((u, i) => {
+    const sp = speakers[u.id], spName = sp ? pname(sp) : null;
+    const played = sp ? (solo ? '🎭 Sahnede oynadı' : `🎭 ${esc(spName)} oynadı`) : '';
+    let stat = '';
+    if (phase === 'answer') {
+      if (!sp) stat = solo ? '⏳ Sonraki kartta katılır' : '⚠️ Takımda oyuncu yok';
+      else stat = solo ? '🎤 Sırada' : `🎤 Sıra: ${esc(spName)}`;
+    } else if (phase === 'result' && D.voted) {
+      stat = sp ? `${solo ? '' : '🎭 ' + esc(spName) + ' · '}<span class="votes">${tally[u.id] || 0} oy</span>` : '';
+    } else stat = played;
+    const cls = ['tile'];
+    if (phase === 'judge' && sp) cls.push('clickable');
+    if (phase === 'result' && winners[u.id]) cls.push('win');
+    const key = phase === 'judge' && sp && i < 9 ? `<span class="key">[${i + 1}]</span>` : '';
+    const crown = phase === 'result' && winners[u.id] ? '🏆 ' : '';
+    return `<div class="${cls.join(' ')}" style="border-color:${unitColor(u)}" ${phase === 'judge' && sp ? `tabindex="0" role="button" onclick="award('${u.id}')"` : ''}>
+      <div class="th"><span>${crown}${unitEmoji(D, u)} ${esc(u.name)} ${key}</span><span class="score">${(D.scores || {})[u.id] || 0}</span></div>
+      <div class="stat">${stat}</div></div>`;
+  }).join('');
   const hadFocus = grid.contains(document.activeElement) ? [...grid.children].indexOf(document.activeElement.closest('.tile')) : -1;
   grid.innerHTML = html;
   if (hadFocus >= 0 && grid.children[hadFocus] && grid.children[hadFocus].tabIndex >= 0) grid.children[hadFocus].focus();
@@ -395,21 +383,20 @@ function renderGame() {
   const last = D.cardIndex + 1 >= D.deck.length;
   const main = $('btn-main'), none = $('btn-none'), hint = $('g-hint');
   none.style.display = phase === 'judge' ? '' : 'none';
-  main.style.display = '';
+  main.style.display = ''; main.classList.remove('ready');
   if (phase === 'answer') {
-    const got = us.filter(u => answers[u.id]).length;
-    main.textContent = cm === 'typed' ? 'Cevapları Göster ▶' : 'Karara Geç ▶';
-    hint.textContent = cm === 'typed' ? `${got} / ${us.filter(u => speakers[u.id]).length} cevap geldi · kısayol: Boşluk` : 'Herkes söyledikten sonra karara geç · kısayol: Boşluk';
-  } else if (phase === 'reveal') {
-    main.textContent = 'Oylamayı Başlat 🗳️';
-    hint.textContent = 'Herkes cevapları okusun, sonra oylamayı başlat · kısayol: Boşluk';
+    const vote = useVote();
+    main.textContent = vote ? 'Oylamaya Geç 🗳️' : 'Karara Geç ⚖️';
+    hint.textContent = vote ? 'Herkes sahneye çıkınca oylamayı başlat — oyuncular telefonundan oy verir' : '2 taraf var: herkes sahneye çıkınca kararı sen ver';
   } else if (phase === 'vote') {
-    const v = eligibleVoters(), n = entries(D.votes).filter(([k]) => v.some(p => p.pid === k)).length;
-    main.textContent = 'Oylamayı Bitir ▶';
-    hint.textContent = `🗳️ ${n} / ${v.length} oy verildi — oyuncular telefonundan oyluyor (kendi cevabına oy veremez)`;
+    const { done, total } = voteStats(), all = total > 0 && done >= total;
+    main.textContent = all ? 'Sonucu Göster ▶' : 'Oylamayı Bitir ▶';
+    main.classList.toggle('ready', all);
+    hint.textContent = all ? '✅ Herkes oy verdi — devam edebilirsin'
+      : `🗳️ ${done} / ${total} oy verildi — oyuncular telefonundan oyluyor (kendine ${solo ? '' : 'ya da takımına '}oy veremez)`;
   } else if (phase === 'judge') {
     main.style.display = 'none';
-    hint.textContent = 'En komik/yaratıcı olanı seç: ekrandan tıkla ya da 1–' + Math.min(us.length, 9) + ' tuşuna bas (0 = puan yok)';
+    hint.textContent = 'En komik/yaratıcı olanı seç: tıkla, kumandayla seç ya da 1–' + Math.min(us.length, 9) + ' tuşuna bas (0 = puan yok)';
   } else {
     main.textContent = last ? 'Sonuçları Göster 🏆' : 'Sonraki Kart ▶';
     const wn = us.filter(u => winners[u.id]).map(u => u.name);
@@ -442,31 +429,30 @@ function startGame() {
 function startCard(i, deck) {
   const d = deck || D.deck, card = d[i], speakers = {};
   units(D).forEach(u => { speakers[u.id] = pickSpeaker(D, u.id, i); });
-  ref.update({ status: 'playing', deck: d, cardIndex: i, phase: 'answer', cardMode: effectiveMode(D.mode, card),
-    speakers, answers: null, votes: null, order: null, winners: null, tally: null });
+  ref.update({ status: 'playing', deck: d, cardIndex: i, phase: 'answer', cardMode: 'spoken',
+    speakers, answers: null, votes: null, order: null, voted: null, winners: null, tally: null });
 }
 function mainAction() {
   if (!D || D.status !== 'playing') return;
-  if (D.phase === 'answer') {
-    if (D.cardMode === 'typed') {
-      const order = shuffle(units(D).filter(u => (D.answers || {})[u.id]).map(u => u.id));
-      ref.update({ phase: 'reveal', order, votes: null });
-    } else ref.update({ phase: 'judge' });
+  if (D.phase === 'answer') ref.update(useVote() ? { phase: 'vote', votes: null } : { phase: 'judge' });
+  else if (D.phase === 'vote') {
+    const { done, total } = voteStats();
+    if (total > 0 && done < total) askConfirm(`${total - done} kişi henüz oy vermedi. Yine de bitirilsin mi?`, finishVote, 'Evet, bitir', 'Bekle');
+    else finishVote();
   }
-  else if (D.phase === 'reveal') ref.update({ phase: 'vote', votes: null });
-  else if (D.phase === 'vote') finishVote();
   else if (D.phase === 'result') { D.cardIndex + 1 >= D.deck.length ? endGame(false) : startCard(D.cardIndex + 1); }
 }
-// Oy sayımı: en çok oy alan cevap/cevaplar 1 puan alır (eşitlikte hepsi)
+// Oy sayımı: sahne alan taraflardan en çok oy alan 1 puan alır (eşitlikte hepsi, hiç oy yoksa puan yok); kendi birimine oy geçersiz
 function finishVote() {
-  const order = Object.values(D.order || {}), valid = new Set(order), tally = {};
+  if (!D || D.phase !== 'vote') return;
+  const valid = new Set(performers().map(u => u.id)), tally = {};
   entries(D.votes).forEach(([voter, uid]) => {
-    if (!valid.has(uid) || !unitOf(D, voter) || unitOf(D, voter) === uid) return; // kendi birimine oy geçersiz
+    if (!valid.has(uid) || !unitOf(D, voter) || unitOf(D, voter) === uid) return;
     tally[uid] = (tally[uid] || 0) + 1;
   });
   const max = Math.max(0, ...Object.values(tally)), winners = {};
   if (max > 0) Object.keys(tally).forEach(uid => { if (tally[uid] === max) { winners[uid] = true; ref.child('scores/' + uid).transaction(v => (v || 0) + 1); } });
-  ref.update({ phase: 'result', tally: Object.keys(tally).length ? tally : null, winners: Object.keys(winners).length ? winners : null });
+  ref.update({ phase: 'result', voted: true, tally: Object.keys(tally).length ? tally : null, winners: Object.keys(winners).length ? winners : null });
 }
 // Sesli mod: sunucu kazananı seçer
 function award(uid) {

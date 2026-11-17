@@ -92,10 +92,17 @@ function join() {
     let id = localStorage.getItem(pidKey(c));
     const existing = id && (d.players || {})[id];
     if (!existing) id = genId();
-    const p = sessionRef(db, c).child('players/' + id);
-    const write = existing ? p.update({ name, online: true })
-                           : p.set({ name, joinedAt: firebase.database.ServerValue.TIMESTAMP, online: true });
-    return write.then(() => { localStorage.setItem(pidKey(c), id); localStorage.setItem('cc_last', JSON.stringify({ code: c, name })); enter(c, id, name); });
+    // En fazla MAX_PLAYERS oyuncu: ekleme işlemi sunucuda atomik yapılır (aynı anda gelenlerde de sınır aşılmaz)
+    return sessionRef(db, c).child('players').transaction(cur => {
+      cur = cur || {};
+      if (cur[id]) { cur[id] = Object.assign({}, cur[id], { name, online: true }); return cur; }
+      if (Object.keys(cur).length >= MAX_PLAYERS) return;   // dolu → işlemi iptal et
+      cur[id] = { name, joinedAt: Date.now(), online: true };
+      return cur;
+    }).then(res => {
+      if (!res.committed) throw new Error('Oyun dolu — en fazla ' + MAX_PLAYERS + ' oyuncu katılabilir.');
+      localStorage.setItem(pidKey(c), id); localStorage.setItem('cc_last', JSON.stringify({ code: c, name })); enter(c, id, name);
+    });
   }).catch(e => $('join-err').textContent = e.message).finally(() => $('btn-join').disabled = false);
 }
 
@@ -167,27 +174,21 @@ function render() {
   if (phase === 'answer') {
     if (!speaker) {
       setPanel(base + '|late', `<div class="big">Sonraki kartta katılırsın ⏳</div>${cardHtml}`);
-    } else if (isSpeaker && cm === 'typed') {
-      const prev = ((D.answers || {})[myUnit] || {}).text || '';
-      setPanel(base + '|typed', `<div class="big glow">Sıra sende! ✍️</div>${cardHtml}
-        <textarea id="ans" maxlength="140" placeholder="Cevabını yaz…">${esc(prev)}</textarea>
-        <button class="btn" id="btn-send" onclick="sendAnswer()">Gönder</button><div class="ok" id="sent">${prev ? '✅ Gönderildi — değiştirip tekrar gönderebilirsin' : ''}</div>`);
     } else if (isSpeaker) {
-      setPanel(base + '|spoken', `<div class="big glow">Sıra sende! 🎤</div>${cardHtml}<div class="note">${card.type === 'action' ? 'Hepsini canlandır — herkes seni izliyor!' : 'Sunucu söz verince cevabını yüksek sesle söyle!'}</div>`);
+      setPanel(base + '|me', `<div class="big glow">Sahne senin! 🎭</div>${cardHtml}<div class="note">${card.type === 'action' ? 'Canlandır — herkes seni izliyor!' : 'Sunucu söz verince canlı söyle / yap — herkes seni izliyor!'}</div>`);
     } else {
-      setPanel(base + '|wait|' + speaker, `<div class="big">${esc(speakerName || 'Takım arkadaşın')} ${cm === 'typed' ? 'yazıyor ✍️' : 'sırada 🎤'}</div>${cardHtml}<div class="note">Takımını destekle! 🙌</div>`);
+      setPanel(base + '|wait|' + speaker, `<div class="big">${esc(speakerName || 'Takım arkadaşın')} sahnede 🎤</div>${cardHtml}<div class="note">Takımını destekle! 🙌</div>`);
     }
-  } else if (phase === 'reveal') {
-    setPanel(base, `<div class="big">Cevaplar TV'de! 📺</div>${cardHtml}<div class="note">Cevapları oku, birazdan oylama başlayacak.</div>`);
   } else if (phase === 'vote') {
-    const order = Object.values(D.order || {}), myVote = (D.votes || {})[pid] || '';
-    if (!order.length) { setPanel(base + '|none', '<div class="big">Kimse cevap yazmadı</div><div class="note">Sunucu devam edecek…</div>'); return; }
-    setPanel(base + '|' + myVote, `<div class="big" style="font-size:1.6rem">🗳️ En komik hangisi?</div>
-      <div class="note" style="margin-bottom:.8rem">Kendi ${solo ? '' : 'takımının '}cevabına oy veremezsin.</div>` +
-      order.map((uid, i) => {
-        const mine = uid === myUnit, a = (D.answers || {})[uid] || {};
-        return `<button class="vote-btn ${uid === myVote ? 'sel' : ''} ${mine ? 'mine' : ''}" ${mine ? 'disabled' : `onclick="vote('${uid}')"`}>
-          <span class="ltr">${LETTERS[i]}</span><span>${esc(a.text)}${mine ? ' <em>(senin)</em>' : ''}</span></button>`;
+    const myVote = (D.votes || {})[pid] || '', sp = D.speakers || {};
+    const opts = us.filter(u => sp[u.id] && u.id !== myUnit);
+    if (!opts.length) { setPanel(base + '|none', '<div class="big">Oylayacak kimse yok</div><div class="note">Sunucu devam edecek…</div>'); return; }
+    setPanel(base + '|' + opts.map(u => u.id).join(',') + '|' + myVote, `<div class="big" style="font-size:1.6rem">🗳️ En komik / yaratıcı kimdi?</div>
+      <div class="note" style="margin-bottom:.8rem">Kendine ${solo ? '' : 'ya da takımına '}oy veremezsin.</div>` +
+      opts.map(u => {
+        const spn = ((D.players || {})[sp[u.id]] || {}).name, sel = u.id === myVote;
+        return `<button class="vote-btn ${sel ? 'sel' : ''}" style="border-color:${sel ? 'var(--gold)' : unitColor(u)}" onclick="vote('${u.id}')">
+          <span class="ltr" style="background:${unitColor(u)}">${unitEmoji(D, u)}</span><span>${esc(u.name)}${!solo && spn ? ' <em>— ' + esc(spn) + '</em>' : ''}</span></button>`;
       }).join('') + `<div class="ok">${myVote ? '✅ Oyun kaydedildi — değiştirebilirsin' : ''}</div>`);
   } else if (phase === 'judge') {
     setPanel(base, `<div class="big">Sunucu karar veriyor… ⚖️</div>${cardHtml}<div class="note">En komik/yaratıcı olan seçiliyor.</div>`);
@@ -208,16 +209,6 @@ function renderTeamPick(us) {
 }
 function pickTeam(tid) { pref.update({ team: tid }); }
 function changeTeam() { pref.update({ team: null }); }
-
-function sendAnswer() {
-  const text = $('ans').value.trim();
-  if (!text) return;
-  ref.child('phase').once('value').then(s => {
-    if (s.val() !== 'answer') { $('sent').textContent = '⏱️ Süre doldu, cevap alınamadı.'; return; }
-    return ref.child('answers/' + unitOf(D, pid)).set({ text, pid, at: firebase.database.ServerValue.TIMESTAMP })
-      .then(() => { $('sent').textContent = '✅ Gönderildi — değiştirip tekrar gönderebilirsin'; });
-  }).catch(e => { $('sent').textContent = 'Hata: ' + e.message; });
-}
 
 function vote(uid) {
   if (!D || D.phase !== 'vote' || uid === unitOf(D, pid)) return;

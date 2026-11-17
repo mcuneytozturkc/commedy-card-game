@@ -470,11 +470,7 @@ body {
 .lq-player-list .pl-label { font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
 .lq-chip { display:inline-flex; align-items:center; gap:5px; background:var(--surface2); border-radius:20px; padding:5px 12px; margin:3px; font-size:13px; font-weight:600; }
 .logo-frame { position:relative; margin:0 auto 20px; width:260px; height:190px; display:flex; align-items:center; justify-content:center; background:var(--surface); border-radius:18px; border:2px solid var(--border); overflow:hidden; }
-.logo-frame img { max-width:210px; max-height:150px; object-fit:contain; transition:filter .8s ease; }
-.logo-frame.diff-easy   img { filter:blur(5px); }
-.logo-frame.diff-medium img { filter:blur(14px) grayscale(.6) contrast(1.2); }
-.logo-frame.diff-hard   img { filter:blur(28px) grayscale(1) brightness(.6); }
-.logo-frame.revealed    img { filter:none !important; }
+.logo-frame img { max-width:210px; max-height:150px; object-fit:contain; }
 .logo-num-badge { position:absolute; top:9px; left:11px; background:var(--surface2); border-radius:8px; padding:2px 9px; font-size:11px; color:var(--text-muted); }
 .diff-badge-sm { position:absolute; top:9px; right:11px; border-radius:8px; padding:2px 9px; font-size:11px; font-weight:700; }
 .db-easy   { background:rgba(34,197,94,.18);  color:#22c55e; }
@@ -726,3 +722,7 @@ input:focus-visible {
   .guess-text   { font-size: 16px; }
   .code-val     { font-size: 58px; }
 }
+
+/* Logo Bilmece: Brandfetch 'icon' türü logolar cevap açıklanana kadar bulanık gösterilir */
+.logo-frame img { transition: filter .3s ease; }
+.logo-frame.blurred img { filter: blur(9px); }

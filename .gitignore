@@ -13,3 +13,7 @@ android/build
 android/capacitor-cordova-android-plugins
 android/local.properties
 *.apk
+
+# Geçici dosyalar
+vite.config.js.timestamp-*
+.claude/settings.local.json

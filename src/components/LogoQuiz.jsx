@@ -3,16 +3,12 @@ import { ref, set, update, get, onValue, runTransaction } from 'firebase/databas
 import Navbar from './Navbar.jsx'
 import { db } from '../firebase.js'
 import { LQ_LOGOS } from '../data/logos.js'
+import LogoImg, { pickForTier, brandfetchId } from './LogoImg.jsx'
 import { shuffle } from '../confetti.js'
 import SplashScreen from './SplashScreen.jsx'
 
 const DIFF_LABEL  = { kolay: '😊 Kolay', orta: '😤 Orta', zor: '🔥 Zor' }
 const DIFF_BADGE  = { kolay: 'db-easy',  orta: 'db-medium', zor: 'db-hard' }
-const DIFF_FILTER = {
-  kolay: 'blur(5px)',
-  orta:  'blur(14px) grayscale(.6) contrast(1.2)',
-  zor:   'blur(28px) grayscale(1) brightness(.6)',
-}
 
 function genCode() { return Math.random().toString(36).substr(2, 6).toUpperCase() }
 
@@ -28,6 +24,7 @@ export default function LogoQuiz({ onHome }) {
   const [logos,         setLogos]         = useState([])
   const [idx,           setIdx]           = useState(0)
   const [revealed,      setRevealed]      = useState(false)
+  const [loadingLogos,  setLoadingLogos]  = useState(false)
   const firstBtnRef = useRef(null)
 
   // ── Online (Firebase) states ───────────────────────────────────
@@ -122,8 +119,19 @@ export default function LogoQuiz({ onHome }) {
   // ════════════════════════════════════════════════════════════════
   // LEGACY MOD
   // ════════════════════════════════════════════════════════════════
-  function startLegacy() {
-    setLogos(shuffle([...LQ_LOGOS[diff]]))
+  async function loadTier(d) {
+    if (!brandfetchId()) { setErr('Brandfetch Client ID girilmemiş (public/config.js).'); return [] }
+    setErr(''); setLoadingLogos(true)
+    const list = await pickForTier(LQ_LOGOS, d)
+    setLoadingLogos(false)
+    if (!list.length) setErr('Logolar yüklenemedi — internet bağlantısını kontrol et.')
+    return list
+  }
+  async function startLegacy() {
+    if (loadingLogos) return
+    const list = await loadTier(diff)
+    if (!list.length) return
+    setLogos(shuffle(list))
     setIdx(0); setRevealed(false)
     setLegacyStage('game')
   }
@@ -171,7 +179,6 @@ export default function LogoQuiz({ onHome }) {
                 {['kolay', 'orta', 'zor'].map(d => (
                   <button key={d} className={'diff-btn' + (diff === d ? ' sel-' + d : '')} onClick={() => setDiff(d)}>
                     {DIFF_LABEL[d]}
-                    <span style={{ display: 'block', fontSize: 10, opacity: .7, marginTop: 2 }}>{LQ_LOGOS[d].length} logo</span>
                   </button>
                 ))}
               </div>
@@ -185,8 +192,9 @@ export default function LogoQuiz({ onHome }) {
                 Hazırsanız başlayalım!
               </div>
 
-              <button className="lq-btn lq-btn-primary" onClick={startLegacy}>
-                Hazırız, Başlayalım! 🚀
+              {err && <div className="lq-err" style={{ marginBottom: 10 }}>{err}</div>}
+              <button className="lq-btn lq-btn-primary" onClick={startLegacy} disabled={loadingLogos}>
+                {loadingLogos ? 'Logolar yükleniyor…' : 'Hazırız, Başlayalım! 🚀'}
               </button>
             </div>
             <button className="btn-secondary" style={{ maxWidth: 500 }} onClick={() => setMode(null)}>← Geri</button>
@@ -218,14 +226,13 @@ export default function LogoQuiz({ onHome }) {
 
     // legacy game — logolar tek tek gösterilir, puanlama yok
     const logo = logos[idx]
-    const imgStyle = { filter: revealed ? 'none' : DIFF_FILTER[diff], transition: 'filter .8s ease' }
     return (
       <>
         {nav}
         <div className="screen screen-lq">
-          <div className="logo-frame" style={{ position: 'relative' }}>
+          <div className={'logo-frame' + (logo.type === 'icon' && !revealed ? ' blurred' : '')} style={{ position: 'relative' }}>
             <span className="logo-num-badge">{idx + 1} / {logos.length}</span>
-            <img src={logo.img} alt="logo" style={imgStyle} />
+            <LogoImg logo={logo} />
           </div>
 
           {revealed && (
@@ -269,10 +276,13 @@ export default function LogoQuiz({ onHome }) {
     setMode(null)
   }
 
-  function createSession() {
+  async function createSession() {
+    if (loadingLogos) return
     const name = hostNameInput.trim() || 'Sunucu'
     const c = genCode()
-    const shuffled = shuffle(LQ_LOGOS[onlineDiff]).map(l => ({ name: l.name, img: l.img }))
+    const list = await loadTier(onlineDiff)
+    if (!list.length) return
+    const shuffled = shuffle(list).map(l => ({ name: l.name, domain: l.domain, type: l.type }))
     setMyName(name); setRole('host'); setCode(c)
     set(ref(db, 'sessions/' + c), {
       host: name, difficulty: onlineDiff, status: 'waiting',
@@ -297,7 +307,7 @@ export default function LogoQuiz({ onHome }) {
   function hostEnd() { set(ref(db, 'sessions/' + code + '/status'), 'ended') }
   function joinSession() {
     const c = joinCodeInput.trim().toUpperCase()
-    const name = joinNameInput.trim()
+    const name = joinNameInput.trim().replace(/[.#$\[\]\/]/g, '').slice(0, 20)
     if (!c || c.length < 6) { setErr('6 karakterli kodu gir'); return }
     if (!name) { setErr('Adını gir'); return }
     get(ref(db, 'sessions/' + c)).then(snap => {
@@ -307,7 +317,7 @@ export default function LogoQuiz({ onHome }) {
       setMyName(name); setRole('player'); setCode(c)
       set(ref(db, 'sessions/' + c + '/players/' + name), { score: 0 }).then(() => {
         setErr(''); setJoined(true); subscribe(c)
-      })
+      }).catch(() => setErr('Katılırken hata oluştu, tekrar dene'))
     }).catch(() => setErr('Bağlantı hatası'))
   }
   function submitGuess() {
@@ -344,7 +354,7 @@ export default function LogoQuiz({ onHome }) {
             </div>
             <input className="lq-input" placeholder="Sunucu adın" value={hostNameInput}
               onChange={e => setHostNameInput(e.target.value)} />
-            <button className="lq-btn lq-btn-primary" onClick={createSession}>Oturum Oluştur</button>
+            <button className="lq-btn lq-btn-primary" onClick={createSession} disabled={loadingLogos}>{loadingLogos ? 'Logolar yükleniyor…' : 'Oturum Oluştur'}</button>
           </div>
 
           <div className="lq-card">
@@ -450,10 +460,10 @@ export default function LogoQuiz({ onHome }) {
       <>
         {onlineNav}
         <div className="screen screen-lq">
-          <div className={'logo-frame diff-' + data.difficulty + (revealed2 ? ' revealed' : '')}>
+          <div className={'logo-frame' + (oLogo?.type === 'icon' && !revealed2 ? ' blurred' : '')}>
             <span className="logo-num-badge">{oIdx + 1} / {onlineLogos.length}</span>
             <span className={'diff-badge-sm ' + DIFF_BADGE[data.difficulty]}>{DIFF_LABEL[data.difficulty]}</span>
-            {oLogo && <img src={oLogo.img} alt="logo" />}
+            {oLogo && <LogoImg logo={oLogo} />}
           </div>
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', marginBottom: 14, fontSize: 14 }}>
             {revealed2 ? 'Logoyu gördünüz — tahminleri işaretleyin' : 'Oyuncular tahmin giriyor…'}
@@ -508,13 +518,14 @@ export default function LogoQuiz({ onHome }) {
     <>
       {onlineNav}
       <div className="screen screen-lq">
-        <div className={'logo-frame diff-' + data.difficulty + (revealed2 ? ' revealed' : '')}>
+        <div className="logo-frame" style={{ flexDirection: 'column', gap: 6, textAlign: 'center' }}>
           <span className="logo-num-badge">{oIdx + 1} / {onlineLogos.length}</span>
           <span className={'diff-badge-sm ' + DIFF_BADGE[data.difficulty]}>{DIFF_LABEL[data.difficulty]}</span>
-          {oLogo && <img src={oLogo.img} alt="logo" />}
+          <div style={{ fontSize: 54 }}>📺</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>Logoya ekrandan bak</div>
         </div>
         <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{revealed2 ? 'Logo açıklandı!' : 'Bu logo ne?'}</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{revealed2 ? 'Logo açıklandı!' : 'Ekrandaki logo ne?'}</div>
           <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
             {revealed2 ? 'Sunucu değerlendiriyor…' : 'Tahminini yaz ve gönder'}
           </div>

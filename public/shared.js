@@ -9,6 +9,7 @@ const TEAM_EMOJI  = ['🟣', '🩷', '🔵', '🟢'];
 const DEFAULT_TEAM_NAMES = ['Mor Takım', 'Pembe Takım', 'Mavi Takım', 'Yeşil Takım'];
 const UNIT_COLORS = ['#a855f7', '#ec4899', '#3b82f6', '#22c55e', '#f59e0b', '#06b6d4', '#ef4444', '#84cc16'];
 const LETTERS = 'ABCDEFGHIJKLMNOP';
+const MAX_PLAYERS = 6;   // en fazla oyuncu sayısı (hem bireysel hem takım modunda toplam)
 
 function initDb() {
   if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);

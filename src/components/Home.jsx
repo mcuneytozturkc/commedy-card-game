@@ -72,7 +72,7 @@ export default function Home({ onOpenGame, onOpenLogoQuiz, onOpenOkNok, onOpenSu
       <div className="screen screen-welcome">
         <div className="welcome-hero">🎭</div>
         <div className="welcome-title">Yusuf Show</div>
-        <div className="welcome-sub">Sıra tabanlı komedi kart oyunu — 2 ila 4 takım, 1 sunucu</div>
+        <div className="welcome-sub">Tiyatral komedi kart oyunu — 2 ila 6 oyuncu, 1 sunucu</div>
 
         <div className="games-grid">
           {allCards.map((card, idx) => (
