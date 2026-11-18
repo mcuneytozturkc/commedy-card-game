@@ -235,7 +235,7 @@ function ccBuild() {
       <div class="meta" id="cc-info"></div>
       <div id="cc-msg" class="err"></div>
       <div id="cc-add"></div>
-      <div class="tabs" style="margin-top:.8rem"><input type="text" id="cc-q" placeholder="Ara…" oninput="ccList()" style="flex:1"><button class="btn ghost" onclick="ccSeed()">⬆️ Yerleşik içeriği Firebase'e yükle</button></div>
+      <div class="tabs" style="margin-top:.8rem"><input type="text" id="cc-q" placeholder="Ara…" oninput="ccList()" style="flex:1"><button class="btn ghost" onclick="ccSeed()">⬆️ Yerleşik içeriği Firebase'e yükle</button><button class="btn ghost" onclick="ccCleanup()">🧹 Eski oturumları temizle</button></div>
     </div>
     <div id="cc-list"></div>`;
   cc.built = true;
@@ -305,6 +305,9 @@ function ccSave(id) {
   db.ref(c.path + '/' + id).set(c.scalar ? rec.text : rec).then(() => { cc.editId = null; }).catch(e => alert('Kaydedilemedi: ' + (e.code || e.message)));
 }
 function ccDel(id) { if (confirm('Bu kayıt oyundan silinsin mi?')) db.ref(COLLS[cc.key].path + '/' + id).remove().catch(e => alert('Silinemedi: ' + (e.code || e.message))); }
+function ccCleanup() {
+  cleanupOldSessions(db).then(n => { $('cc-msg').style.color = '#86efac'; $('cc-msg').textContent = n + ' eski oturum silindi (12 saatten eski olanlar) 🧹'; });
+}
 async function ccSeed() {
   try {
     const seed = await (await fetch('content-seed.json', { cache: 'no-store' })).json();

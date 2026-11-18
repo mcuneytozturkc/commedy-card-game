@@ -246,6 +246,7 @@ function createSession() {
   const solo = setup.teamMode === 'solo', teams = {}, scores = {};
   if (!solo) for (let i = 0; i < setup.teamCount; i++) { teams['t' + i] = { name: setup.names[i] }; scores['t' + i] = 0; }
   code = genCode();
+  cleanupOldSessions(db);
   sessionRef(db, code).set({
     type: 'comedy', createdAt: firebase.database.ServerValue.TIMESTAMP,
     status: 'lobby', mode: setup.mode, teamMode: setup.teamMode, cardCount: setup.cardCount, includeApproved: $('inc-approved').checked, teams: solo ? null : teams, scores

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { ref, set, update, get, onValue, runTransaction } from 'firebase/database'
+import { ref, set, update, get, onValue, runTransaction, serverTimestamp } from 'firebase/database'
+import { cleanupOldSessions } from '../sessionCleanup.js'
 import Navbar from './Navbar.jsx'
 import QrCode from './QrCode.jsx'
 import { logoJoinUrl } from '../publicUrl.js'
@@ -285,9 +286,10 @@ export default function LogoQuiz({ onHome, joinCode }) {
     const list = await loadTier(onlineDiff)
     if (!list.length) return
     const shuffled = shuffle(list).map(l => ({ name: l.name, domain: l.domain, type: l.type }))
+    cleanupOldSessions()
     setMyName(name); setRole('host'); setCode(c)
     set(ref(db, 'sessions/' + c), {
-      host: name, difficulty: onlineDiff, status: 'waiting',
+      host: name, difficulty: onlineDiff, status: 'waiting', createdAt: serverTimestamp(),
       logoIndex: 0, logos: shuffled, players: {}, guesses: {},
     }).then(() => { setJoined(true); subscribe(c) })
       .catch(e => setErr('Firebase hatası: ' + e.message))

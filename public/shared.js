@@ -126,3 +126,17 @@ function contentCards(game) {
 function builtinPool(game) {
   return contentCards(game).map((c, i) => ({ text: c.text, source: 'yerleşik', game, id: 'b' + i }));
 }
+
+// ───── Eski oturumları temizle (Realtime Database'de otomatik süre aşımı yok) ─────
+// Her yeni oturumda çağrılır; 12 saatten eski (ya da createdAt'siz) oturumlar silinir. Sunucu saatine göre hesaplanır.
+function cleanupOldSessions(db, maxAgeMs) {
+  maxAgeMs = maxAgeMs || 12 * 60 * 60 * 1000;
+  return db.ref('.info/serverTimeOffset').once('value').then(o => {
+    const cutoff = Date.now() + (o.val() || 0) - maxAgeMs;
+    return db.ref('sessions').orderByChild('createdAt').endAt(cutoff).once('value').then(snap => {
+      const upd = {}; snap.forEach(ch => { upd[ch.key] = null; });
+      const n = Object.keys(upd).length;
+      return n ? db.ref('sessions').update(upd).then(() => n) : 0;
+    });
+  }).catch(() => 0);
+}

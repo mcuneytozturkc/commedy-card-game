@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
-import { ref, set, update, get, onValue } from 'firebase/database'
+import { ref, set, update, get, onValue, serverTimestamp } from 'firebase/database'
+import { cleanupOldSessions } from '../sessionCleanup.js'
 import Navbar from './Navbar.jsx'
 import QrCode from './QrCode.jsx'
 import { db } from '../firebase.js'
@@ -32,6 +33,7 @@ export default function OkNok({ onHome, joinCode }) {
   const [questions, setQuestions] = useState([])
   const [qIdx, setQIdx] = useState(0)
   const [answers, setAnswers] = useState([])
+  const [results, setResults] = useState([]) // yalnızca sunucuda (bellekte); veritabanına yazılmaz
   const sessionRef = useRef(null)
   const unsubRef = useRef(null)
   const mainRef = useRef(null)
@@ -71,7 +73,8 @@ export default function OkNok({ onHome, joinCode }) {
   // ───────── Sunucu işlemleri ─────────
   function createSession() {
     const c = genCode()
-    set(ref(db, 'sessions/' + c), { type: 'oknok', status: 'lobby', created: Date.now() })
+    cleanupOldSessions()
+    set(ref(db, 'sessions/' + c), { type: 'oknok', status: 'lobby', createdAt: serverTimestamp() })
       .then(() => { setCode(c); setRole('host'); setErr(''); subscribe(c) })
       .catch(e => setErr('Firebase hatası: ' + e.message))
   }
@@ -91,10 +94,10 @@ export default function OkNok({ onHome, joinCode }) {
     Object.keys(data?.couples || {}).forEach(cid => keys.push(cid + ':a', cid + ':b'))
     if (!keys.length) return
     const { cid, who, rest } = pickFrom(keys)
-    resetRound()
+    resetRound(); setResults([])
     update(sessionRef.current, {
       status: 'playing', stage: 'intro', round: 1, total: keys.length,
-      pool: rest, current: { cid, who }, results: null,
+      pool: rest, current: { cid, who },
     })
   }
   function startQuestions() {
@@ -109,13 +112,11 @@ export default function OkNok({ onHome, joinCode }) {
     const tox = getToxicity(nok)
     const c = data.couples[data.current.cid]
     if (nok === 0) confetti()
-    update(sessionRef.current, {
-      ['results/' + data.round]: {
-        player: c[data.current.who], partner: c[other(data.current.who)],
-        ok: ROUND_COUNT - nok, nok, emoji: tox.emoji, title: tox.title,
-      },
-      stage: 'result',
-    })
+    setResults(r => [...r, {
+      player: c[data.current.who], partner: c[other(data.current.who)],
+      ok: ROUND_COUNT - nok, nok, emoji: tox.emoji, title: tox.title,
+    }])
+    update(sessionRef.current, { stage: 'result' })
   }
   function nextPlayer() {
     const keys = Object.keys(data?.pool || {})
@@ -152,7 +153,6 @@ export default function OkNok({ onHome, joinCode }) {
   const player = curCouple ? curCouple[cur.who] : ''
   const partner = curCouple ? curCouple[other(cur.who)] : ''
   const remaining = Object.keys(data?.pool || {}).length
-  const results = Object.values(data?.results || {})
   const nav = (right) => (
     <Navbar onHome={() => leave(true)} center={role ? <div className="nav-game-badge">💑 Ok mu Nok mu?</div> : null} right={right} />
   )
@@ -252,10 +252,10 @@ export default function OkNok({ onHome, joinCode }) {
           <div style={{ textAlign: 'center', marginBottom: 20 }}>
             <div style={{ fontSize: 64, marginBottom: 8 }}>🏁</div>
             <div className="end-title">Oyun Bitti!</div>
-            <div className="end-sub">En az Nok alan en sağlıklı</div>
+            <div className="end-sub">{role === 'host' ? 'En az Nok alan en sağlıklı' : 'Sonuçlar sunucu ekranında 📺'}</div>
           </div>
-          {ranked.length === 0 && <div style={{ color: 'var(--text-muted)' }}>Hiç tur oynanmadı.</div>}
-          {ranked.map((r, i) => (
+          {role === 'host' && ranked.length === 0 && <div style={{ color: 'var(--text-muted)' }}>Hiç tur oynanmadı.</div>}
+          {role === 'host' && ranked.map((r, i) => (
             <div className={'lq-score-row' + (i === 0 ? ' first' : '')} key={r.player + i}>
               <span style={{ fontSize: 18, width: 26 }}>{medals[i] || r.emoji}</span>
               <span style={{ flex: 1, fontSize: 15, fontWeight: 700, textAlign: 'left' }}>
@@ -320,21 +320,17 @@ export default function OkNok({ onHome, joinCode }) {
   // ───────── Oyun sürüyor: telefon görünümü ─────────
   if (role === 'player') {
     const mine = cur && cur.cid === myCid
-    const res = data?.results?.[data?.round]
     return (
       <>
         {nav(null)}
         <div className="screen screen-lq" style={{ justifyContent: 'center' }}>
           <div className="oknok-result-card">
-            <div className="oknok-result-emoji">{stage === 'result' && res ? res.emoji : '🎤'}</div>
+            <div className="oknok-result-emoji">{stage === 'result' ? '👏' : '🎤'}</div>
             <div className="oknok-result-couple">Tur {data?.round}</div>
             <div className="oknok-result-title">{player}</div>
             <div className="oknok-result-msg">Partneri: {partner}</div>
             {mine && <div className="oknok-result-msg" style={{ color: 'var(--accent2)', fontWeight: 700 }}>Sahne sizde 🎭</div>}
-            {stage === 'result' && res && (
-              <div className="oknok-result-msg">{res.title} — ✅ {res.ok} · ❌ {res.nok}</div>
-            )}
-            {stage !== 'result' && <div className="oknok-result-msg">Ekrana bakın, sorular geliyor…</div>}
+            <div className="oknok-result-msg">{stage === 'result' ? 'Tur bitti — sonuç ekranda 📺' : 'Ekrana bakın, sorular geliyor…'}</div>
           </div>
         </div>
       </>

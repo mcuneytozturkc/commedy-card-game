@@ -32,3 +32,8 @@ Yeni özellik değilse (yalnızca içerik) APK yeniden yapmaya / push etmeye ger
 **Günlük kullanım:** admin → ⚙️ İçerik → listeyi seç → ekle / düzenle / sil. Değişiklik anında geçerlidir (uygulama bir sonraki açılışta ya da oyuna girişte yeniler).
 - Logo markaları için alan adı gerekir (örn. `nike.com`); simgesi Brandfetch'te bulunmayan markalar oyunda otomatik elenir.
 - Gömülü yedek liste (`src/data/*.js`, `public/cards.js`) güncel tutulmak zorunda değil; yalnızca internet/Firebase yokken devreye girer. Yeniden üretmek için: `node scripts/gen-seed.mjs`.
+
+## 🧹 Eski oturumların temizliği
+Realtime Database'de otomatik süre aşımı yoktur; bu yüzden her yeni oturum (Komedi, Logo Bilmece, Ok mu Nok mu) açılırken **12 saatten eski** (ya da `createdAt` alanı olmayan eski) oturumlar silinir. Zamanlama sunucu saatine göre yapılır. Admin → ⚙️ İçerik → **🧹 Eski oturumları temizle** ile elle de çalıştırılabilir.
+- Bunun hızlı çalışması için kurallarda `sessions` altında `".indexOn": ["createdAt"]` bulunmalı (`database.rules.json`'da var; Firebase'e yayınlamayı unutma). Yayınlanmazsa temizlik sessizce çalışmaz, oyun etkilenmez.
+- Ok mu Nok mu tur sonuçları veritabanına yazılmaz; yalnızca sunucu ekranının belleğinde tutulur.
