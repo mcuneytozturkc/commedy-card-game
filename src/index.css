@@ -726,3 +726,15 @@ input:focus-visible {
 /* Logo Bilmece: Brandfetch 'icon' türü logolar cevap açıklanana kadar bulanık gösterilir */
 .logo-frame img { transition: filter .3s ease; }
 .logo-frame.blurred img { filter: blur(9px); }
+
+/* Ana sayfa: kart/soru gönder + düğmesi ve seçim penceresi */
+.nav-plus { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--border, #444); background: var(--surface2, #222); color: var(--text, #fff); font-size: 26px; line-height: 1; font-weight: 700; cursor: pointer; display: grid; place-items: center; padding: 0 0 3px; }
+.nav-plus:hover, .nav-plus:focus { border-color: #22c55e; color: #22c55e; outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,.3); }
+.modal-back { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: grid; place-items: center; z-index: 100; padding: 16px; }
+.modal-box { background: var(--surface, #1a1a24); border: 1px solid var(--border, #333); border-radius: 20px; padding: 24px; width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 12px; }
+.modal-title { font-size: 22px; font-weight: 800; text-align: center; }
+.modal-sub { color: var(--text-muted); text-align: center; font-size: 14px; margin-bottom: 4px; }
+.modal-opt { display: flex; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; border-radius: 14px; border: 2px solid var(--border, #333); background: var(--surface2, #222); color: var(--text, #fff); cursor: pointer; font-size: 17px; }
+.modal-opt small { display: block; color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+.modal-opt:hover, .modal-opt:focus { border-color: #22c55e; outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,.3); }
+.modal-opt-emoji { font-size: 30px; }
