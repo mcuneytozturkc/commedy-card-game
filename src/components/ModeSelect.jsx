@@ -18,7 +18,7 @@ export default function ModeSelect({ gameId, onSingleScreen, onHome }) {
       emoji: '📱',
       name: 'Telefonlarla Oyna',
       desc: 'TV sunucu olur, en fazla 6 oyuncu QR kodla telefonundan katılır. Sahneye çıkan canlı söyler/oynar; kazananı sunucu seçer ya da oyuncular oylar.',
-      handler: () => openPage('tv.html'),
+      handler: () => { try { sessionStorage.setItem('ys_from_home', '1') } catch { /* yoksay */ } openPage('tv.html') },
       borderColor: '#a855f744',
     },
     {

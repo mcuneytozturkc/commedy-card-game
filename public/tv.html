@@ -1,6 +1,11 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+<script>
+// tv.html doğrudan açılırsa (adres çubuğu, yer imi) ana sayfaya gönder: oyun seçimi ana sayfadan yapılır.
+// Ana sayfadaki "Telefonlarla Oyna" düğmesi bu bayrağı koyup gelir.
+try { if (sessionStorage.getItem('ys_from_home') !== '1') location.replace('./'); } catch (e) {}
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Yusuf Show — TV / Sunucu</title>
