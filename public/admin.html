@@ -81,6 +81,7 @@
     <div class="tabs">
       <button class="tab sel" id="tab-pending" onclick="setTab('pending')">⏳ Bekleyenler (<span id="n-pending">0</span>)</button>
       <button class="tab" id="tab-approved" onclick="setTab('approved')">✅ Onaylananlar (<span id="n-approved">0</span>)</button>
+      <button class="btn ghost" onclick="ccCleanup(this)" title="12 saatten eski oturumları siler">🧹 Eski oturumları temizle</button>
       <button class="tab" id="tab-content" onclick="setTab('content')">⚙️ İçerik</button>
       <select id="f-game" onchange="render()"></select>
       <input type="text" id="f-q" placeholder="Ara…" oninput="render()">
@@ -268,7 +269,7 @@ function ccBuild() {
       <div class="meta" id="cc-info"></div>
       <div id="cc-msg" class="err"></div>
       <div id="cc-add"></div>
-      <div class="tabs" style="margin-top:.8rem"><input type="text" id="cc-q" placeholder="Ara…" oninput="ccList()" style="flex:1"><button class="btn ghost" onclick="ccSeed(this)">⬆️ Yerleşik içeriği Firebase'e yükle</button><button class="btn ghost" onclick="ccCleanup(this)">🧹 Eski oturumları temizle</button></div>
+      <div class="tabs" style="margin-top:.8rem"><input type="text" id="cc-q" placeholder="Ara…" oninput="ccList()" style="flex:1"></div>
     </div>
     <div id="cc-list"></div>`;
   cc.built = true;
@@ -339,15 +340,6 @@ function ccSave(id, btn) {
 }
 function ccDel(id, btn) { if (confirm('Bu kayıt oyundan silinsin mi?')) run(btn, () => db.ref(COLLS[cc.key].path + '/' + id).remove(), 'Silindi'); }
 function ccCleanup(btn) { let n = 0; run(btn, () => cleanupOldSessions(db).then(x => { n = x; }), null).then(() => toast(n + ' eski oturum silindi 🧹')); }
-function ccSeed(btn) {
-  run(btn, async () => {
-    const seed = await (await fetch('content-seed.json', { cache: 'no-store' })).json();
-    const exists = (await db.ref('content').once('value')).exists();
-    if (exists && !confirm('Firebase\'de zaten içerik var. Yerleşik içerik bunun ÜZERİNE YAZILIR; sonradan eklediğin/düzenlediğin kayıtlar kaybolur. Devam edilsin mi?')) return;
-    await db.ref('content').set(seed);
-    toast('Yerleşik içerik Firebase\'e yüklendi ✅');
-  }, null);
-}
 
 boot();
 </script>
