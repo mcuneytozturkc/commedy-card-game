@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+<link rel="icon" type="image/png" href="icon.png">
 <script>
 // komedi.html doğrudan açılırsa (adres çubuğu, yer imi) ana sayfaya gönder: oyun seçimi ana sayfadan yapılır.
 // Ana sayfadaki "Telefonlarla Oyna" düğmesi bu bayrağı koyup gelir.
@@ -19,6 +20,7 @@ try { if (sessionStorage.getItem('ys_from_home') !== '1') location.replace('./')
   body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; overflow-x:hidden; }
   .screen { display:none; min-height:100vh; padding:2rem 2.5rem; flex-direction:column; }
   .screen.active { display:flex; }
+  img.brand-icon { height:1em; width:1em; border-radius:22%; vertical-align:-.12em; -webkit-text-fill-color:initial; }
   h1.brand { font-size:2.4rem; font-weight:900; background:linear-gradient(135deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
   .sub { color:var(--muted); margin-top:.3rem; }
   button { font-family:inherit; cursor:pointer; }
@@ -119,7 +121,7 @@ try { if (sessionStorage.getItem('ys_from_home') !== '1') location.replace('./')
 <!-- ============ KURULUM ============ -->
 <div id="s-setup" class="screen active">
   <div style="align-self:flex-start;margin-bottom:.8rem"><button class="btn ghost" id="btn-home" onclick="goHome()">← Ana Sayfa</button></div>
-  <h1 class="brand">🎭 Yusuf Show</h1>
+  <h1 class="brand"><img src="icon.png" class="brand-icon" alt=""> Yusuf Show</h1>
   <div class="sub">TV / Sunucu ekranı — oyunculara telefonlarından katılacak</div>
 
   <div id="resume" class="resume">

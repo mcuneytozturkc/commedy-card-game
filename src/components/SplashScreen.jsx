@@ -37,7 +37,7 @@ export default function SplashScreen({ onDone, duration = 2000 }) {
   return (
     <div className="splash-overlay">
       <div className="splash-inner">
-        <div className="splash-emoji">🎭</div>
+        <div className="splash-emoji"><img className="logo-img" src={import.meta.env.BASE_URL + 'icon.png'} alt="" /></div>
         <div className="splash-title">Yusuf Show</div>
         <div className="splash-sub">Yükleniyor…</div>
         <div className="splash-dots">

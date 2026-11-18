@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+<link rel="icon" type="image/png" href="icon.png">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Yusuf Show — Oyuncu</title>
@@ -10,6 +11,7 @@
   body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; min-height:100dvh; }
   .screen { display:none; min-height:100vh; min-height:100dvh; padding:1.2rem; flex-direction:column; max-width:30rem; margin:0 auto; }
   .screen.active { display:flex; }
+  img.brand-icon { height:1em; width:1em; border-radius:22%; vertical-align:-.12em; -webkit-text-fill-color:initial; }
   h1.brand { font-size:1.9rem; font-weight:900; text-align:center; background:linear-gradient(135deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-top:1.5rem; }
   .sub { color:var(--muted); text-align:center; margin:.4rem 0 1.5rem; font-size:.95rem; }
   input, textarea { width:100%; padding:.95rem 1rem; border-radius:14px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-size:1.05rem; font-family:inherit; outline:none; margin-bottom:.9rem; }
@@ -52,7 +54,7 @@
 
 <!-- Katıl -->
 <div id="s-join" class="screen active">
-  <h1 class="brand">🎭 Yusuf Show</h1>
+  <h1 class="brand"><img src="icon.png" class="brand-icon" alt=""> Yusuf Show</h1>
   <div class="sub">TV'deki kodu gir ve adını yaz</div>
   <input id="in-code" class="code" maxlength="5" placeholder="KOD" autocapitalize="characters" autocomplete="off">
   <input id="in-name" maxlength="16" placeholder="Adın" autocomplete="nickname">

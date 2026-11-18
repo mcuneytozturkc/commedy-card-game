@@ -7,7 +7,7 @@ export default function Navbar({ onHome, center, right }) {
         onClick={onHome}
         onKeyDown={(e) => { if (e.key === 'Enter') onHome() }}
       >
-        <span className="nav-logo">🎭</span>
+        <span className="nav-logo"><img className="logo-img" src={import.meta.env.BASE_URL + 'icon.png'} alt="" /></span>
         <span className="nav-title">Yusuf Show</span>
       </div>
       <div className="nav-center">{center}</div>

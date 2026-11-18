@@ -91,7 +91,7 @@ export default function Home({ onOpenGame, onOpenLogoQuiz, onOpenOkNok, onOpenSu
         }
       />
       <div className="screen screen-welcome">
-        <div className="welcome-hero">🎭</div>
+        <div className="welcome-hero"><img className="logo-img" src={import.meta.env.BASE_URL + 'icon.png'} alt="" /></div>
         <div className="welcome-title">Yusuf Show</div>
         <div className="welcome-sub">Tiyatral komedi kart oyunu — 2 ila 6 oyuncu, 1 sunucu</div>
 
