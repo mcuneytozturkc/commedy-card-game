@@ -46,6 +46,14 @@
   .err { color:#f87171; min-height:1.2rem; font-size:.9rem; margin-bottom:.5rem; }
   .hidden { display:none !important; }
   .login { max-width:24rem; margin:3rem auto; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .spin, .btn.loading::before { display:inline-block; width:.95em; height:.95em; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%; animation:sp .7s linear infinite; vertical-align:-.15em; margin-right:.45rem; }
+  .btn.loading::before { content:''; }
+  .btn.loading { pointer-events:none; opacity:.85; }
+  body.busy button, body.busy select { pointer-events:none; opacity:.6; }
+  #busy-pill { position:fixed; left:50%; bottom:1.2rem; transform:translateX(-50%); background:var(--surface2); border:1px solid var(--accent2); padding:.65rem 1.2rem; border-radius:999px; font-weight:700; z-index:50; box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  #toast { position:fixed; left:50%; bottom:1.2rem; transform:translateX(-50%); background:#14532d; border:1px solid var(--green); color:#bbf7d0; padding:.65rem 1.2rem; border-radius:999px; font-weight:700; z-index:50; box-shadow:0 6px 24px rgba(0,0,0,.5); }
+  #toast.err { background:#450a0a; border-color:var(--red); color:#fecaca; }
 </style>
 </head>
 <body>
@@ -77,12 +85,15 @@
       <select id="f-game" onchange="render()"></select>
       <input type="text" id="f-q" placeholder="Ara…" oninput="render()">
       <span class="grow" style="flex:1"></span>
-      <button class="btn ok" id="btn-bulk" onclick="approveClean()">Benzeri olmayanların hepsini onayla</button>
+      <button class="btn ok" id="btn-bulk" onclick="approveClean(this)">Benzeri olmayanların hepsini onayla</button>
     </div>
     <div id="list"></div>
     <div id="content-panel" class="hidden"></div>
   </div>
 </div>
+
+<div id="busy-pill" class="hidden"><span class="spin"></span>Kaydediliyor…</div>
+<div id="toast" class="hidden"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
@@ -94,6 +105,28 @@
 <script>
 let db, user = null, tab = 'pending', pending = [], approved = [], editing = {}, drafts = {}, started = false;
 const $ = id => document.getElementById(id);
+
+// Veritabanına yazan her işlem run() ile çalışır: düğmede + altta dönen gösterge, bitene kadar düğmeler kilitli,
+// bitince başarı/hata mesajı çıkar ve sayfa yeni verilerle yeniden çizilir.
+let pendingOps = 0, toastTimer = null;
+function toast(msg, isErr) {
+  const t = $('toast'); t.textContent = msg; t.classList.toggle('err', !!isErr); t.classList.remove('hidden');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), isErr ? 5000 : 2200);
+}
+function refreshUI() { if (tab === 'content') { if (cc.built) ccList(); } else render(); }
+function run(btn, fn, okMsg) {
+  pendingOps++; document.body.classList.add('busy'); $('busy-pill').classList.remove('hidden'); $('toast').classList.add('hidden');
+  if (btn) btn.classList.add('loading');
+  let failed = false;
+  return Promise.resolve().then(fn)
+    .catch(e => { failed = true; toast('İşlem başarısız: ' + (e.code || e.message || e), true); })
+    .then(() => {
+      pendingOps--; if (!pendingOps) { document.body.classList.remove('busy'); $('busy-pill').classList.add('hidden'); }
+      if (btn) btn.classList.remove('loading');
+      refreshUI();
+      if (!failed && okMsg) toast(okMsg);
+    });
+}
 
 function boot() {
   $('f-game').innerHTML = '<option value="">Tüm oyunlar</option>' + Object.keys(SUBMIT_GAMES).map(k => `<option value="${k}">${SUBMIT_GAMES[k].emoji} ${SUBMIT_GAMES[k].name}</option>`).join('');
@@ -169,46 +202,46 @@ function pendingHtml(c) {
   return `<div class="item ${cls}"><div class="meta">${gameBadge(c.game)}<span class="badge">${esc(c.type)}</span><span class="badge">${esc(c.category || '')}</span>${flag}<span>${esc(c.author || 'anonim')} · ${fmt(c.createdAt)}</span></div>
     ${body}${matchesHtml(a)}
     <div class="actions">
-      ${ed ? `<button class="btn" onclick="saveEdit('${c.id}')">Kaydet</button><button class="btn ghost" onclick="cancelEdit('${c.id}')">Vazgeç</button>`
-           : `<button class="btn ok" ${a.hardDup ? 'disabled' : ''} onclick="approve('${c.id}')">✅ Onayla</button><button class="btn ghost" onclick="startEdit('${c.id}')">✏️ Düzenle</button><button class="btn no" onclick="reject('${c.id}')">🗑️ Reddet</button>`}
+      ${ed ? `<button class="btn" onclick="saveEdit('${c.id}', this)">Kaydet</button><button class="btn ghost" onclick="cancelEdit('${c.id}')">Vazgeç</button>`
+           : `<button class="btn ok" ${a.hardDup ? 'disabled' : ''} onclick="approve('${c.id}', this)">✅ Onayla</button><button class="btn ghost" onclick="startEdit('${c.id}')">✏️ Düzenle</button><button class="btn no" onclick="reject('${c.id}', this)">🗑️ Reddet</button>`}
     </div></div>`;
 }
 function approvedHtml(c) {
   return `<div class="item"><div class="meta">${gameBadge(c.game)}<span class="badge">${esc(c.category || '')}</span><span>${esc(c.author || 'anonim')} · onay: ${fmt(c.approvedAt)}</span></div>
     <div class="txt">${esc(c.text)}</div>${c.answer ? `<div class="ans">Cevap: ${esc(c.answer)}</div>` : ''}
-    <div class="actions"><button class="btn no" onclick="removeApproved('${c.id}')">Oyundan kaldır</button></div></div>`;
+    <div class="actions"><button class="btn no" onclick="removeApproved('${c.id}', this)">Oyundan kaldır</button></div></div>`;
 }
 
 // ───────── Eylemler ─────────
 function startEdit(id) { const c = pending.find(p => p.id === id); drafts[id] = { text: c.text, category: c.category, answer: c.answer || '' }; editing[id] = true; render(); }
 function cancelEdit(id) { delete editing[id]; delete drafts[id]; render(); }
 function draft(id, k, v) { drafts[id][k] = v; }
-function saveEdit(id) {
+function saveEdit(id, btn) {
   const d = drafts[id], text = (d.text || '').trim().replace(/\s+/g, ' ');
   if (text.length < 8) return alert('Metin en az 8 karakter olmalı.');
   const upd = { text, category: (d.category || '').trim() || '✨ Genel' };
   if (d.answer !== undefined && pending.find(p => p.id === id).game === 'riddle') upd.answer = (d.answer || '').trim();
-  db.ref('cards/pending/' + id).update(upd).then(() => { delete editing[id]; delete drafts[id]; });
+  run(btn, () => db.ref('cards/pending/' + id).update(upd).then(() => { delete editing[id]; delete drafts[id]; }), 'Kaydedildi ✅');
 }
 function approveRecord(c) {
   const rec = { game: c.game, type: c.type, text: c.text, category: c.category || '✨ Genel', createdAt: c.createdAt || null, approvedAt: firebase.database.ServerValue.TIMESTAMP };
   if (c.answer) rec.answer = c.answer; if (c.author) rec.author = c.author;
   return rec;
 }
-function approve(id) {
+function approve(id, btn) {
   const c = pending.find(p => p.id === id); if (!c) return;
   if (analyze(c).hardDup) return alert('Bu kart zaten var (birebir aynı).');
-  db.ref().update({ ['cards/approved/' + id]: approveRecord(c), ['cards/pending/' + id]: null });
+  run(btn, () => db.ref().update({ ['cards/approved/' + id]: approveRecord(c), ['cards/pending/' + id]: null }), 'Onaylandı ✅');
 }
-function reject(id) { if (confirm('Bu kart reddedilip silinsin mi?')) db.ref('cards/pending/' + id).remove(); }
-function removeApproved(id) { if (confirm('Bu kart oyundan kaldırılsın mı?')) db.ref('cards/approved/' + id).remove(); }
+function reject(id, btn) { if (confirm('Bu kart reddedilip silinsin mi?')) run(btn, () => db.ref('cards/pending/' + id).remove(), 'Reddedildi'); }
+function removeApproved(id, btn) { if (confirm('Bu kart oyundan kaldırılsın mı?')) run(btn, () => db.ref('cards/approved/' + id).remove(), 'Oyundan kaldırıldı'); }
 
 // Hiçbir kayıtla (yerleşik/onaylı/diğer bekleyen) benzerliği olmayan bekleyenleri tek seferde onayla
-function approveClean() {
+function approveClean(btn) {
   const g = $('f-game').value, upd = {}; let n = 0;
   pending.filter(c => !g || c.game === g).forEach(c => { if (!analyze(c).matches.length) { upd['cards/approved/' + c.id] = approveRecord(c); upd['cards/pending/' + c.id] = null; n++; } });
   if (!n) return alert('Benzeri olmayan bekleyen kart yok.');
-  if (confirm(n + ' kart onaylansın mı?')) db.ref().update(upd);
+  if (confirm(n + ' kart onaylansın mı?')) run(btn, () => db.ref().update(upd), n + ' kart onaylandı ✅');
 }
 
 // ───────── ⚙️ İçerik yönetimi (Firebase content/…) ─────────
@@ -235,7 +268,7 @@ function ccBuild() {
       <div class="meta" id="cc-info"></div>
       <div id="cc-msg" class="err"></div>
       <div id="cc-add"></div>
-      <div class="tabs" style="margin-top:.8rem"><input type="text" id="cc-q" placeholder="Ara…" oninput="ccList()" style="flex:1"><button class="btn ghost" onclick="ccSeed()">⬆️ Yerleşik içeriği Firebase'e yükle</button><button class="btn ghost" onclick="ccCleanup()">🧹 Eski oturumları temizle</button></div>
+      <div class="tabs" style="margin-top:.8rem"><input type="text" id="cc-q" placeholder="Ara…" oninput="ccList()" style="flex:1"><button class="btn ghost" onclick="ccSeed(this)">⬆️ Yerleşik içeriği Firebase'e yükle</button><button class="btn ghost" onclick="ccCleanup(this)">🧹 Eski oturumları temizle</button></div>
     </div>
     <div id="cc-list"></div>`;
   cc.built = true;
@@ -246,7 +279,7 @@ function ccOpen(key) {
   cc.key = key; cc.editId = null; cc.data = {};
   Object.keys(COLLS).forEach(k => $('cc-tab-' + k).classList.toggle('sel', k === key));
   const c = COLLS[key];
-  $('cc-add').innerHTML = `<div class="warnbox" style="margin:0"><b>Yeni ekle</b><div style="margin-top:.6rem">${c.fields.map(f => ccFieldHtml(f, '', '', `id="cc-new-${f[0]}"`)).join('')}</div><button class="btn ok" onclick="ccAdd()">➕ Ekle</button></div>`;
+  $('cc-add').innerHTML = `<div class="warnbox" style="margin:0"><b>Yeni ekle</b><div style="margin-top:.6rem">${c.fields.map(f => ccFieldHtml(f, '', '', `id="cc-new-${f[0]}"`)).join('')}</div><button class="btn ok" onclick="ccAdd(this)">➕ Ekle</button></div>`;
   $('cc-list').innerHTML = '<div class="empty">Yükleniyor…</div>';
   cc.ref = db.ref(c.path);
   cc.cb = s => { cc.data = s.val() || {}; if (key === 'comedy') setContentCards('comedy', Object.keys(cc.data).sort().map(k => cc.data[k])); $('cc-msg').textContent = ''; ccList(); };
@@ -264,8 +297,8 @@ function ccList() {
   $('cc-info').innerHTML = `<span class="badge">${all.length} kayıt</span>${q ? `<span class="badge">${rows.length} sonuç</span>` : ''}${all.length ? '' : '<span class="badge gold">Boş — uygulama gömülü yedek listeyi kullanıyor. "Yerleşik içeriği Firebase\'e yükle"ye bas.</span>'}`;
   if (!rows.length) { $('cc-list').innerHTML = '<div class="empty">Kayıt yok.</div>'; return; }
   $('cc-list').innerHTML = rows.slice(0, 150).map(([id, r]) => cc.editId === id
-    ? `<div class="item"><div class="meta"><span class="badge">düzenleniyor</span></div>${c.fields.map(f => ccFieldHtml(f, cc.draft[f[0]], `cc.draft['${f[0]}']=this.value`, '')).join('')}<div class="actions"><button class="btn" onclick="ccSave('${id}')">Kaydet</button><button class="btn ghost" onclick="cc.editId=null;ccList()">Vazgeç</button></div></div>`
-    : `<div class="item"><div class="txt">${esc(c.title(r))}</div><div class="meta" style="margin:.3rem 0 0">${esc(c.sub(r))}</div><div class="actions"><button class="btn ghost" onclick="ccEdit('${id}')">✏️ Düzenle</button><button class="btn no" onclick="ccDel('${id}')">🗑️ Sil</button></div></div>`).join('')
+    ? `<div class="item"><div class="meta"><span class="badge">düzenleniyor</span></div>${c.fields.map(f => ccFieldHtml(f, cc.draft[f[0]], `cc.draft['${f[0]}']=this.value`, '')).join('')}<div class="actions"><button class="btn" onclick="ccSave('${id}', this)">Kaydet</button><button class="btn ghost" onclick="cc.editId=null;ccList()">Vazgeç</button></div></div>`
+    : `<div class="item"><div class="txt">${esc(c.title(r))}</div><div class="meta" style="margin:.3rem 0 0">${esc(c.sub(r))}</div><div class="actions"><button class="btn ghost" onclick="ccEdit('${id}')">✏️ Düzenle</button><button class="btn no" onclick="ccDel('${id}', this)">🗑️ Sil</button></div></div>`).join('')
     + (rows.length > 150 ? `<div class="empty">İlk 150 kayıt gösteriliyor — aramayı daralt.</div>` : '');
 }
 function ccClean(rec) {
@@ -290,32 +323,30 @@ function ccDup(rec, ownId) {
   if (cc.key !== 'big' && cc.key !== 'small') return false;
   return ccRecs().some(([id, r]) => id !== ownId && r.domain === rec.domain);
 }
-function ccAdd() {
+function ccAdd(btn) {
   const c = COLLS[cc.key], raw = {}; c.fields.forEach(f => raw[f[0]] = $('cc-new-' + f[0]).value);
   const rec = ccClean(raw), ok = ccValid(rec); if (ok !== true) return alert(ok);
   if (ccDup(rec)) return alert('Bu alan adı bu listede zaten var.');
   const sim = ccSimilar(rec); if (sim && !confirm('Benzer bir kayıt var, yine de eklensin mi?' + sim)) return;
-  db.ref(c.path).push(c.scalar ? rec.text : rec).then(() => { c.fields.forEach(f => { $('cc-new-' + f[0]).value = ''; }); }).catch(e => alert('Eklenemedi: ' + (e.code || e.message)));
+  run(btn, () => db.ref(c.path).push(c.scalar ? rec.text : rec).then(() => { c.fields.forEach(f => { $('cc-new-' + f[0]).value = ''; }); }), 'Eklendi ✅');
 }
 function ccEdit(id) { const r = ccRecs().find(e => e[0] === id)[1]; cc.draft = { ...r }; cc.editId = id; ccList(); }
-function ccSave(id) {
+function ccSave(id, btn) {
   const c = COLLS[cc.key], rec = ccClean(cc.draft), ok = ccValid(rec); if (ok !== true) return alert(ok);
   if (ccDup(rec, id)) return alert('Bu alan adı bu listede zaten var.');
   const sim = ccSimilar(rec, id); if (sim && !confirm('Benzer bir kayıt var, yine de kaydedilsin mi?' + sim)) return;
-  db.ref(c.path + '/' + id).set(c.scalar ? rec.text : rec).then(() => { cc.editId = null; }).catch(e => alert('Kaydedilemedi: ' + (e.code || e.message)));
+  run(btn, () => db.ref(c.path + '/' + id).set(c.scalar ? rec.text : rec).then(() => { cc.editId = null; }), 'Kaydedildi ✅');
 }
-function ccDel(id) { if (confirm('Bu kayıt oyundan silinsin mi?')) db.ref(COLLS[cc.key].path + '/' + id).remove().catch(e => alert('Silinemedi: ' + (e.code || e.message))); }
-function ccCleanup() {
-  cleanupOldSessions(db).then(n => { $('cc-msg').style.color = '#86efac'; $('cc-msg').textContent = n + ' eski oturum silindi (12 saatten eski olanlar) 🧹'; });
-}
-async function ccSeed() {
-  try {
+function ccDel(id, btn) { if (confirm('Bu kayıt oyundan silinsin mi?')) run(btn, () => db.ref(COLLS[cc.key].path + '/' + id).remove(), 'Silindi'); }
+function ccCleanup(btn) { let n = 0; run(btn, () => cleanupOldSessions(db).then(x => { n = x; }), null).then(() => toast(n + ' eski oturum silindi 🧹')); }
+function ccSeed(btn) {
+  run(btn, async () => {
     const seed = await (await fetch('content-seed.json', { cache: 'no-store' })).json();
     const exists = (await db.ref('content').once('value')).exists();
     if (exists && !confirm('Firebase\'de zaten içerik var. Yerleşik içerik bunun ÜZERİNE YAZILIR; sonradan eklediğin/düzenlediğin kayıtlar kaybolur. Devam edilsin mi?')) return;
     await db.ref('content').set(seed);
-    $('cc-msg').style.color = '#86efac'; $('cc-msg').textContent = 'Yerleşik içerik Firebase\'e yüklendi ✅';
-  } catch (e) { $('cc-msg').style.color = ''; $('cc-msg').textContent = 'Yüklenemedi: ' + (e.code || e.message) + ' (içerik kuralları yayınlandı mı? ADMIN-KURULUM.md)'; }
+    toast('Yerleşik içerik Firebase\'e yüklendi ✅');
+  }, null);
 }
 
 boot();
