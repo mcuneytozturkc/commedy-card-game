@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<script>
+// komedi.html doğrudan açılırsa (adres çubuğu, yer imi) ana sayfaya gönder: oyun seçimi ana sayfadan yapılır.
+// Ana sayfadaki "Telefonlarla Oyna" düğmesi bu bayrağı koyup gelir.
+try { if (sessionStorage.getItem('ys_from_home') !== '1') location.replace('./'); } catch (e) {}
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yusuf Show — TV / Sunucu</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0a0a14; --surface:#13132a; --surface2:#1e1e3a; --border:#2e2e55;
+    --text:#eeeeff; --muted:#8a8ac0; --accent:#7c3aed; --accent2:#a855f7; --gold:#f59e0b; --green:#22c55e;
+  }
+  html { font-size: clamp(14px, 1.45vw, 30px); }
+  body { background:var(--bg); color:var(--text); font-family:'Segoe UI',system-ui,sans-serif; min-height:100vh; overflow-x:hidden; }
+  .screen { display:none; min-height:100vh; padding:2rem 2.5rem; flex-direction:column; }
+  .screen.active { display:flex; }
+  h1.brand { font-size:2.4rem; font-weight:900; background:linear-gradient(135deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .sub { color:var(--muted); margin-top:.3rem; }
+  button { font-family:inherit; cursor:pointer; }
+  .btn { padding:.8rem 1.6rem; border-radius:14px; border:none; font-size:1.05rem; font-weight:800; color:#fff;
+         background:linear-gradient(135deg,var(--accent),#ec4899); transition:transform .15s, opacity .2s; }
+  .btn:hover:not(:disabled) { transform:translateY(-2px); }
+  .btn:disabled { opacity:.35; cursor:not-allowed; }
+  .btn.ghost { background:transparent; border:1px solid var(--border); color:var(--muted); font-weight:600; }
+  .btn.ghost:hover:not(:disabled) { color:var(--text); border-color:var(--muted); }
+
+  /* ---- Kurulum ---- */
+  #s-setup { align-items:center; }
+  .panel { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:1.4rem 2rem; width:100%; max-width:46rem; margin-top:1rem; }
+  .panel h3 { font-size:.95rem; color:var(--muted); font-weight:700; margin-bottom:.8rem; text-transform:uppercase; letter-spacing:.06em; }
+  .choice-row { display:flex; gap:.8rem; flex-wrap:wrap; }
+  .choice { flex:1; min-width:12rem; padding:1rem 1.2rem; border-radius:14px; border:2px solid var(--border); background:var(--surface2); color:var(--text); text-align:left; }
+  .choice b { display:block; font-size:1.15rem; }
+  .choice span { font-size:.85rem; color:var(--muted); }
+  .choice.sel { border-color:var(--accent2); background:rgba(168,85,247,.15); }
+  .chips { display:flex; gap:.6rem; }
+  .chip-btn { padding:.6rem 1.3rem; border-radius:12px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-size:1.1rem; font-weight:800; }
+  .chip-btn.sel { border-color:var(--accent2); background:rgba(168,85,247,.15); }
+  .team-inputs { display:grid; grid-template-columns:1fr 1fr; gap:.7rem; }
+  .team-inputs input { width:100%; padding:.7rem 1rem; border-radius:12px; border:2px solid var(--border); background:var(--surface2); color:var(--text); font-size:1rem; outline:none; }
+  .team-inputs input:focus { border-color:var(--accent2); }
+  .resume { margin-top:1rem; padding:.9rem 1.2rem; background:rgba(245,158,11,.12); border:1px solid var(--gold); border-radius:14px; display:none; align-items:center; gap:1rem; max-width:46rem; width:100%; }
+  .resume.show { display:flex; }
+  .resume span { flex:1; }
+
+  /* ---- Lobi ---- */
+  .lobby-top { display:flex; gap:2.5rem; align-items:center; }
+  .qr-box { background:#fff; border-radius:20px; padding:.8rem; width:15rem; height:15rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .qr-box svg { width:100%; height:100%; }
+  .code-big { font-size:4.2rem; font-weight:900; letter-spacing:.35rem; line-height:1; background:linear-gradient(135deg,#a855f7,#ec4899); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .url-line { color:var(--muted); font-size:.95rem; margin-top:.6rem; word-break:break-all; }
+  .warn { margin-top:.8rem; padding:.7rem 1rem; border-radius:12px; background:rgba(239,68,68,.12); border:1px solid #ef4444; font-size:.9rem; display:none; }
+  .warn.show { display:block; }
+  .mode-badge { display:inline-block; margin:.8rem .5rem 0 0; padding:.35rem 1rem; border-radius:999px; background:var(--surface2); font-weight:700; font-size:.95rem; }
+  .teams-grid { display:grid; gap:1rem; margin-top:1.8rem; flex:1; align-content:start; }
+  .tcol { background:var(--surface); border:2px solid var(--border); border-radius:18px; padding:1rem 1.2rem; }
+  .tcol h4 { font-size:1.2rem; margin-bottom:.6rem; }
+  .pchip { display:inline-block; margin:.2rem .3rem .2rem 0; padding:.3rem .8rem; border-radius:999px; background:var(--surface2); font-size:.95rem; }
+  .pchip.off { opacity:.4; }
+  .empty { color:var(--muted); font-size:.9rem; }
+  .footer-bar { display:flex; align-items:center; gap:1rem; margin-top:1.2rem; }
+  .footer-bar .hint { color:var(--muted); flex:1; }
+
+  /* ---- Oyun ---- */
+  .topbar { display:flex; align-items:center; gap:1rem; color:var(--muted); font-size:.95rem; }
+  .topbar .grow { flex:1; }
+  .pill { background:var(--surface2); padding:.3rem .9rem; border-radius:999px; font-weight:700; color:var(--text); }
+  .card-stage { flex:1; display:flex; align-items:center; justify-content:center; padding:1.2rem 0; }
+  .card { background:linear-gradient(160deg,#1e1e3a,#13132a); border:2px solid var(--accent2); border-radius:28px; padding:2.2rem 3rem; max-width:62rem; text-align:center;
+          box-shadow:0 0 60px rgba(168,85,247,.25); }
+  .card .cat { color:var(--muted); font-size:1rem; font-weight:700; margin-bottom:1rem; }
+  .card .txt { font-size:2.2rem; font-weight:800; line-height:1.3; }
+  .card .kind { margin-top:1.2rem; font-size:1rem; color:var(--gold); font-weight:700; }
+  .tiles { display:grid; gap:1rem; }
+  .tile { background:var(--surface); border:3px solid var(--border); border-radius:18px; padding:1rem 1.2rem; text-align:left; color:var(--text); min-height:6.5rem; }
+  .tile .th { display:flex; align-items:center; justify-content:space-between; font-weight:800; font-size:1.15rem; gap:.5rem; }
+  .tile .score { font-size:1.8rem; font-weight:900; }
+  .tile .stat { margin-top:.5rem; color:var(--muted); font-size:.95rem; }
+  .tile .ans { margin-top:.5rem; font-size:1.2rem; font-weight:600; color:var(--text); line-height:1.3; }
+  .tile.clickable { cursor:pointer; }
+  .tile.clickable:hover { transform:translateY(-3px); }
+  .tile.win { border-color:var(--gold) !important; background:rgba(245,158,11,.12); }
+  .tile .key { font-size:.8rem; color:var(--muted); font-weight:700; }
+  .tile .letter { display:inline-block; min-width:2rem; text-align:center; padding:.1rem .5rem; border-radius:10px; background:var(--accent); color:#fff; margin-right:.5rem; }
+  .tile .votes { font-size:1.1rem; font-weight:800; color:var(--gold); }
+  .controls { display:flex; align-items:center; gap:1rem; margin-top:1.2rem; }
+  .controls .hint { color:var(--muted); flex:1; font-size:.95rem; }
+
+  /* ---- Bitiş ---- */
+  #s-end { align-items:center; justify-content:center; text-align:center; }
+  .podium { display:flex; flex-direction:column; gap:.8rem; margin:1.5rem 0; min-width:22rem; }
+  .prow { display:flex; align-items:center; gap:1rem; background:var(--surface); border:2px solid var(--border); border-radius:16px; padding:.9rem 1.4rem; font-size:1.3rem; font-weight:800; }
+  .prow.first { border-color:var(--gold); background:rgba(245,158,11,.12); }
+  .prow .nm { flex:1; text-align:left; }
+  /* ---- TV kumanda: odak halkası, onay penceresi ---- */
+  :focus-visible { outline:4px solid var(--gold); outline-offset:3px; }
+  input:focus-visible { outline:none; border-color:var(--gold) !important; box-shadow:0 0 0 3px rgba(245,158,11,.3); }
+  .tile:focus-visible { transform:translateY(-3px); box-shadow:0 0 0 4px rgba(245,158,11,.35); }
+  #modal { position:fixed; inset:0; background:rgba(5,5,12,.85); display:none; align-items:center; justify-content:center; z-index:20; }
+  #modal.show { display:flex; }
+  .modal-box { background:var(--surface); border:2px solid var(--accent2); border-radius:22px; padding:2rem 2.4rem; min-width:24rem; max-width:40rem; text-align:center; }
+  .modal-box p { font-size:1.35rem; font-weight:800; line-height:1.4; margin-bottom:1.5rem; }
+  .modal-actions { display:flex; gap:1rem; justify-content:center; }
+  .submit-qr { display:flex; align-items:center; gap:1.2rem; margin-top:1.1rem; }
+  .submit-qr .qr-mini { background:#fff; border-radius:12px; padding:.4rem; width:7.5rem; height:7.5rem; flex-shrink:0; }
+  .submit-qr .qr-mini svg { width:100%; height:100%; }
+  .btn.ready { background:linear-gradient(135deg,#16a34a,#22c55e); animation:pulse 1.1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.06); } }
+  #toast { position:fixed; bottom:1.2rem; left:50%; transform:translateX(-50%); background:#ef4444; color:#fff; padding:.7rem 1.4rem; border-radius:12px; font-weight:700; display:none; z-index:10; }
+</style>
+</head>
+<body>
+
+<!-- ============ KURULUM ============ -->
+<div id="s-setup" class="screen active">
+  <div style="align-self:flex-start;margin-bottom:.8rem"><button class="btn ghost" id="btn-home" onclick="goHome()">← Ana Sayfa</button></div>
+  <h1 class="brand">🎭 Yusuf Show</h1>
+  <div class="sub">TV / Sunucu ekranı — oyunculara telefonlarından katılacak</div>
+
+  <div id="resume" class="resume">
+    <span>Yarım kalan bir oturum var: <b id="resume-code"></b></span>
+    <button class="btn" onclick="resumeSession()">Devam et</button>
+    <button class="btn ghost" onclick="forgetSession()">Unut</button>
+  </div>
+
+  <div class="panel">
+    <h3>Kim yarışıyor?</h3>
+    <div class="choice-row">
+      <button class="choice sel" id="tm-solo" onclick="setTeamMode('solo')"><b>👤 Oyuncular</b><span>Herkes kendi adına yarışır, telefonundan katılır. En fazla 6 oyuncu.</span></button>
+      <button class="choice" id="tm-team" onclick="setTeamMode('team')"><b>👥 Takımlar</b><span>Oyuncular takım seçer, her kartta takımdan sıradaki kişi sahneye çıkar. Toplam en fazla 6 oyuncu.</span></button>
+    </div>
+    <div style="margin-top:.9rem;color:var(--muted);font-size:.9rem;line-height:1.5">🎭 Tiyatral oyun: sıradaki canlı söyler/oynar. <b>2 taraf</b> varsa kazananı sunucu seçer; <b>3 ve üzeri</b> tarafta oyuncular telefonundan oy verir.</div>
+  </div>
+
+  <div class="panel" id="team-panel">
+    <h3>Takımlar</h3>
+    <div class="chips" style="margin-bottom:1rem">
+      <button class="chip-btn" onclick="setTeamCount(2)" id="tc2">2</button>
+      <button class="chip-btn" onclick="setTeamCount(3)" id="tc3">3</button>
+      <button class="chip-btn" onclick="setTeamCount(4)" id="tc4">4</button>
+    </div>
+    <div class="team-inputs" id="team-inputs"></div>
+  </div>
+
+  <div class="panel">
+    <h3>Kart sayısı</h3>
+    <div class="chips">
+      <button class="chip-btn" onclick="setCardCount(8)" id="cc8">8</button>
+      <button class="chip-btn" onclick="setCardCount(12)" id="cc12">12</button>
+      <button class="chip-btn" onclick="setCardCount(0)" id="cc0">Hepsi</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:.6rem;margin-top:1rem;color:var(--muted);font-size:.95rem;cursor:pointer"><input type="checkbox" id="inc-approved" checked style="width:1.1rem;height:1.1rem"> Oyuncuların gönderip admin onayından geçen kartları da kat</label>
+    <div class="submit-qr" id="submit-qr-wrap" style="display:none">
+      <div class="qr-mini" id="submit-qr"></div>
+      <div style="font-size:.9rem;color:var(--muted)">✍️ Kendi kartını / sorunu göndermek için telefonla okut. Admin onaylarsa oyuna eklenir.<div id="submit-url" style="margin-top:.3rem;word-break:break-all"></div></div>
+    </div>
+  </div>
+
+  <button class="btn" id="btn-create" style="margin-top:1.5rem; font-size:1.25rem; padding:1rem 2.6rem" onclick="createSession()">Oturum Oluştur ▶</button>
+</div>
+
+<!-- ============ LOBİ ============ -->
+<div id="s-lobby" class="screen">
+  <div class="lobby-top">
+    <div class="qr-box" id="qr"></div>
+    <div>
+      <div class="sub">Telefonundan katıl — QR'ı okut ya da koda gir:</div>
+      <div class="code-big" id="lobby-code"></div>
+      <div class="url-line" id="lobby-url"></div>
+      <span class="mode-badge" id="lobby-teammode"></span><span class="mode-badge" id="lobby-mode"></span>
+      <div class="warn" id="file-warn"></div>
+    </div>
+  </div>
+  <div class="teams-grid" id="lobby-teams"></div>
+  <div class="footer-bar">
+    <div class="hint" id="lobby-hint"></div>
+    <button class="btn ghost" id="btn-cancel" onclick="cancelSession()">İptal</button>
+    <button class="btn" id="btn-start" onclick="startGame()" disabled>Oyunu Başlat ▶</button>
+  </div>
+</div>
+
+<!-- ============ OYUN ============ -->
+<div id="s-game" class="screen">
+  <div class="topbar">
+    <span class="pill" id="g-num"></span>
+    <span class="pill" id="g-mode"></span>
+    <span class="grow"></span>
+    <span>Kod: <b id="g-code"></b></span>
+    <button class="btn ghost" style="padding:.4rem 1rem" onclick="endGame(true)">Bitir</button>
+  </div>
+  <div class="card-stage"><div class="card"><div class="cat" id="c-cat"></div><div class="txt" id="c-txt"></div><div class="kind" id="c-kind"></div></div></div>
+  <div class="tiles" id="g-tiles"></div>
+  <div class="controls">
+    <div class="hint" id="g-hint"></div>
+    <button class="btn ghost" id="btn-none" onclick="award('none')" style="display:none">Puan yok (0)</button>
+    <button class="btn" id="btn-main" onclick="mainAction()"></button>
+  </div>
+</div>
+
+<!-- ============ BİTİŞ ============ -->
+<div id="s-end" class="screen">
+  <h1 class="brand" style="font-size:3.4rem">🏆 Oyun Bitti!</h1>
+  <div class="podium" id="podium"></div>
+  <div style="display:flex;gap:1rem">
+    <button class="btn" id="btn-newgame" onclick="newGame()">Yeni Oyun</button>
+    <button class="btn ghost" onclick="goHome()">Ana Sayfa</button>
+  </div>
+</div>
+
+<div id="modal"><div class="modal-box"><p id="modal-msg"></p><div class="modal-actions"><button class="btn ghost" id="modal-no"></button><button class="btn" id="modal-yes"></button></div></div></div>
+
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="cards.js"></script>
+<script src="config.js"></script>
+<script src="shared.js"></script>
+<script>
+let db, ref = null, D = null, code = null;
+let setup = { mode: 'spoken', teamMode: 'solo', teamCount: 2, cardCount: 12, names: [...DEFAULT_TEAM_NAMES] };
+let lobbyBuiltFor = null;
+
+function $(id) { return document.getElementById(id); }
+function show(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === id)); setTimeout(focusDefault, 0); }
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(() => t.style.display = 'none', 4000); }
+
+// ───────── Kurulum ─────────
+function setTeamMode(m) { saveNames(); setup.teamMode = m; renderSetup(); }
+function setTeamCount(n) { saveNames(); setup.teamCount = n; renderSetup(); }
+function setCardCount(n) { setup.cardCount = n; renderSetup(); }
+function saveNames() { document.querySelectorAll('#team-inputs input').forEach((inp, i) => { setup.names[i] = inp.value.trim() || DEFAULT_TEAM_NAMES[i]; }); }
+function renderSetup() {
+  [2, 3, 4].forEach(n => $('tc' + n).classList.toggle('sel', setup.teamCount === n));
+  [8, 12, 0].forEach(n => $('cc' + n).classList.toggle('sel', setup.cardCount === n));
+  $('tm-team').classList.toggle('sel', setup.teamMode === 'team');
+  $('tm-solo').classList.toggle('sel', setup.teamMode === 'solo');
+  $('team-panel').style.display = setup.teamMode === 'team' ? '' : 'none';
+  $('team-inputs').innerHTML = Array.from({ length: setup.teamCount }, (_, i) =>
+    `<input maxlength="20" value="${esc(setup.names[i])}" placeholder="${DEFAULT_TEAM_NAMES[i]}" style="border-left:6px solid ${UNIT_COLORS[i]}">`).join('');
+}
+
+function createSession() {
+  saveNames();
+  const solo = setup.teamMode === 'solo', teams = {}, scores = {};
+  if (!solo) for (let i = 0; i < setup.teamCount; i++) { teams['t' + i] = { name: setup.names[i] }; scores['t' + i] = 0; }
+  code = genCode();
+  cleanupOldSessions(db);
+  sessionRef(db, code).set({
+    type: 'comedy', createdAt: firebase.database.ServerValue.TIMESTAMP,
+    status: 'lobby', mode: setup.mode, teamMode: setup.teamMode, cardCount: setup.cardCount, includeApproved: $('inc-approved').checked, teams: solo ? null : teams, scores
+  }).then(() => attach(code)).catch(e => toast('Firebase hatası: ' + e.message));
+}
+
+function attach(c) {
+  if (ref) ref.off();
+  code = c; ref = sessionRef(db, c); lobbyBuiltFor = null;
+  localStorage.setItem('cc_host_code', c);
+  ref.on('value', snap => {
+    D = snap.val();
+    if (!D) { toast('Oturum silindi.'); detach(); return; }
+    render();
+  }, err => toast('Bağlantı hatası: ' + err.message));
+}
+function detach() { if (ref) ref.off(); ref = null; D = null; localStorage.removeItem('cc_host_code'); show('s-setup'); checkResume(); }
+function checkResume() {
+  const c = localStorage.getItem('cc_host_code');
+  if (!c) { $('resume').classList.remove('show'); return; }
+  sessionRef(db, c).once('value').then(s => {
+    const d = s.val();
+    if (d && d.type === 'comedy' && d.status !== 'ended') { $('resume-code').textContent = c; $('resume').classList.add('show'); }
+    else { localStorage.removeItem('cc_host_code'); $('resume').classList.remove('show'); }
+  }).catch(() => {});
+}
+function resumeSession() { attach(localStorage.getItem('cc_host_code')); $('resume').classList.remove('show'); }
+function forgetSession() { localStorage.removeItem('cc_host_code'); $('resume').classList.remove('show'); }
+function cancelSession() { askConfirm('Oturum iptal edilsin mi? Oyuncuların bağlantısı kopar.', () => { if (ref) ref.remove(); detach(); }, 'Evet, iptal et', 'Geri dön'); }
+function newGame() { if (ref) ref.remove(); detach(); }
+
+// ───────── Render ─────────
+function render() {
+  if (D.status === 'lobby') renderLobby();
+  else if (D.status === 'playing') renderGame();
+  else if (D.status === 'ended') renderEnd();
+}
+
+
+function renderLobby() {
+  show('s-lobby');
+  if (lobbyBuiltFor !== code) {
+    lobbyBuiltFor = code; lobbyStartEnabled = false;
+    $('lobby-code').textContent = code;
+    const url = playUrl(code);
+    $('lobby-url').textContent = url;
+    const prob = joinUrlProblem(), fw = $('file-warn');
+    fw.innerHTML = prob ? '⚠️ ' + esc(prob) + ' Siteyi internete yayınlayıp adresini <code>public/config.js</code> içindeki <code>YS_PUBLIC_BASE_URL</code> alanına yaz; ya da aynı Wi-Fi\'de bilgisayarının yerel IP adresinden aç.' : '';
+    fw.classList.toggle('show', !!prob);
+    const qrEl = $('qr');
+    try { const qr = qrcode(0, 'M'); qr.addData(url); qr.make(); qrEl.innerHTML = qr.createSvgTag({ cellSize: 6, margin: 0, scalable: true }); }
+    catch (e) { qrEl.innerHTML = '<span style="color:#333;font-size:.8rem;text-align:center">QR yüklenemedi<br>kodu elle gir</span>'; }
+  }
+  const solo = isSolo(D), players = playerList(D);
+  $('lobby-teammode').textContent = solo ? '👤 Oyuncular' : '👥 Takımlar';
+  $('lobby-mode').textContent = '🎭 Canlı sahne';
+  const grid = $('lobby-teams');
+  if (solo) {
+    grid.style.gridTemplateColumns = '1fr';
+    grid.innerHTML = `<div class="tcol"><h4>👤 Oyuncular <span class="empty">(${players.length} / ${MAX_PLAYERS})</span></h4>` +
+      (players.length ? players.map(p => `<span class="pchip ${p.online ? '' : 'off'}">${esc(p.name)}</span>`).join('') : '<span class="empty">Henüz kimse yok…</span>') + '</div>';
+    $('btn-start').disabled = players.length < 2;
+    $('lobby-hint').textContent = players.length < 2 ? 'En az 2 oyuncu gerekli.' : `${players.length} / ${MAX_PLAYERS} oyuncu hazır` + (players.length >= MAX_PLAYERS ? ' — oyun dolu' : '');
+    lobbyFocus();
+    return;
+  }
+  const teams = teamList(D);
+  grid.style.gridTemplateColumns = `repeat(${teams.length}, 1fr)`;
+  grid.innerHTML = teams.map(t => {
+    const m = teamMembers(D, t.id);
+    return `<div class="tcol" style="border-color:${unitColor(t)}">
+      <h4>${TEAM_EMOJI[t.idx]} ${esc(t.name)} <span class="empty">(${m.length})</span></h4>
+      ${m.length ? m.map(p => `<span class="pchip ${p.online ? '' : 'off'}">${esc(p.name)}</span>`).join('') : '<span class="empty">Henüz kimse yok…</span>'}
+    </div>`;
+  }).join('');
+  const unassigned = players.filter(p => !p.team).length;
+  const ready = teams.every(t => teamMembers(D, t.id).length > 0);
+  $('btn-start').disabled = !ready;
+  lobbyFocus();
+  $('lobby-hint').textContent = !players.length ? 'Oyuncular bekleniyor…'
+    : !ready ? 'Her takımda en az 1 oyuncu olmalı.'
+    : `${players.length} / ${MAX_PLAYERS} oyuncu hazır` + (players.length >= MAX_PLAYERS ? ' — oyun dolu' : '') + (unassigned ? ` (${unassigned} kişi henüz takım seçmedi)` : '');
+}
+
+function curCard() { return D.deck && D.deck[D.cardIndex]; }
+function pname(pid) { const p = (D.players || {})[pid]; return p ? p.name : '—'; }
+// Bu kartta sahneye çıkan taraflar (takım ya da oyuncu)
+function performers() { const sp = D.speakers || {}; return units(D).filter(u => sp[u.id]); }
+// 2 taraf: sunucu seçer · 3 ve üzeri: oyuncular oy verir
+function useVote() { return performers().length > 2; }
+function eligibleVoters() { return playerList(D).filter(p => unitOf(D, p.pid) && p.online); }
+function voteStats() {
+  const perf = new Set(performers().map(u => u.id)), vs = eligibleVoters();
+  const done = vs.filter(p => { const t = (D.votes || {})[p.pid]; return t && perf.has(t) && t !== unitOf(D, p.pid); }).length;
+  return { done, total: vs.length };
+}
+
+function renderGame() {
+  if (!D.deck || D.cardIndex == null || !curCard()) return;
+  show('s-game');
+  const card = curCard(), us = units(D), phase = D.phase, solo = isSolo(D);
+  const speakers = D.speakers || {}, winners = D.winners || {}, tally = D.tally || {};
+  $('g-num').textContent = `Kart ${D.cardIndex + 1} / ${D.deck.length}`;
+  $('g-mode').textContent = card.type === 'action' ? '🎭 Hareket kartı — canlı yap!' : '🎤 Canlı sahne — söyle / yap!';
+  $('g-code').textContent = code;
+  $('c-cat').textContent = card.category;
+  $('c-txt').textContent = card.text;
+  $('c-kind').textContent = card.type === 'action' ? '🎭 Sıradaki oyuncu bunu canlandırır' : '🎤 Sıradaki oyuncu söyler / yapar';
+
+  const grid = $('g-tiles');
+  grid.style.gridTemplateColumns = `repeat(${us.length <= 4 ? Math.max(us.length, 1) : 3}, 1fr)`;
+  const html = us.map((u, i) => {
+    const sp = speakers[u.id], spName = sp ? pname(sp) : null;
+    const played = sp ? (solo ? '🎭 Sahnede oynadı' : `🎭 ${esc(spName)} oynadı`) : '';
+    let stat = '';
+    if (phase === 'answer') {
+      if (!sp) stat = solo ? '⏳ Sonraki kartta katılır' : '⚠️ Takımda oyuncu yok';
+      else stat = solo ? '🎤 Sırada' : `🎤 Sıra: ${esc(spName)}`;
+    } else if (phase === 'result' && D.voted) {
+      stat = sp ? `${solo ? '' : '🎭 ' + esc(spName) + ' · '}<span class="votes">${tally[u.id] || 0} oy</span>` : '';
+    } else stat = played;
+    const cls = ['tile'];
+    if (phase === 'judge' && sp) cls.push('clickable');
+    if (phase === 'result' && winners[u.id]) cls.push('win');
+    const key = phase === 'judge' && sp && i < 9 ? `<span class="key">[${i + 1}]</span>` : '';
+    const crown = phase === 'result' && winners[u.id] ? '🏆 ' : '';
+    return `<div class="${cls.join(' ')}" style="border-color:${unitColor(u)}" ${phase === 'judge' && sp ? `tabindex="0" role="button" onclick="award('${u.id}')"` : ''}>
+      <div class="th"><span>${crown}${unitEmoji(D, u)} ${esc(u.name)} ${key}</span><span class="score">${(D.scores || {})[u.id] || 0}</span></div>
+      <div class="stat">${stat}</div></div>`;
+  }).join('');
+  const hadFocus = grid.contains(document.activeElement) ? [...grid.children].indexOf(document.activeElement.closest('.tile')) : -1;
+  grid.innerHTML = html;
+  if (hadFocus >= 0 && grid.children[hadFocus] && grid.children[hadFocus].tabIndex >= 0) grid.children[hadFocus].focus();
+
+  const last = D.cardIndex + 1 >= D.deck.length;
+  const main = $('btn-main'), none = $('btn-none'), hint = $('g-hint');
+  none.style.display = phase === 'judge' ? '' : 'none';
+  main.style.display = ''; main.classList.remove('ready');
+  if (phase === 'answer') {
+    const vote = useVote();
+    main.textContent = vote ? 'Oylamaya Geç 🗳️' : 'Karara Geç ⚖️';
+    hint.textContent = vote ? 'Herkes sahneye çıkınca oylamayı başlat — oyuncular telefonundan oy verir' : '2 taraf var: herkes sahneye çıkınca kararı sen ver';
+  } else if (phase === 'vote') {
+    const { done, total } = voteStats(), all = total > 0 && done >= total;
+    main.textContent = all ? 'Sonucu Göster ▶' : 'Oylamayı Bitir ▶';
+    main.classList.toggle('ready', all);
+    hint.textContent = all ? '✅ Herkes oy verdi — devam edebilirsin'
+      : `🗳️ ${done} / ${total} oy verildi — oyuncular telefonundan oyluyor (kendine ${solo ? '' : 'ya da takımına '}oy veremez)`;
+  } else if (phase === 'judge') {
+    main.style.display = 'none';
+    hint.textContent = 'En komik/yaratıcı olanı seç: tıkla, kumandayla seç ya da 1–' + Math.min(us.length, 9) + ' tuşuna bas (0 = puan yok)';
+  } else {
+    main.textContent = last ? 'Sonuçları Göster 🏆' : 'Sonraki Kart ▶';
+    const wn = us.filter(u => winners[u.id]).map(u => u.name);
+    hint.textContent = wn.length ? `Puan alan: ${wn.join(', ')}` : 'Bu kartta puan verilmedi.';
+  }
+  gameFocus();
+}
+
+function renderEnd() {
+  show('s-end');
+  const us = units(D).map(u => ({ ...u, score: (D.scores || {})[u.id] || 0 })).sort((a, b) => b.score - a.score);
+  const medals = ['🥇', '🥈', '🥉'];
+  $('podium').innerHTML = us.map((u, i) =>
+    `<div class="prow ${i === 0 ? 'first' : ''}"><span>${medals[i] || (i + 1) + '.'}</span><span class="nm" style="color:${unitColor(u)}">${esc(u.name)}</span><span>${u.score}</span></div>`).join('');
+}
+
+// ───────── Sunucu eylemleri ─────────
+function startGame() {
+  if (isSolo(D) ? playerList(D).length < 2 : !teamList(D).every(t => teamMembers(D, t.id).length > 0)) return;
+  $('btn-start').disabled = true;
+  // Havuz: yerleşik komedi kartları + (isteniyorsa) admin onaylı kullanıcı kartları. Seçilen kartlar oturuma yazılır → telefonlar kendi listesine bağlı kalmaz.
+  const extra = D.includeApproved === false ? Promise.resolve([]) : loadApprovedCards(db);
+  loadContentCards(db).then(() => extra).then(ap => {
+    const pool = contentCards('comedy').concat(ap.filter(a => a.game === 'comedy' && (a.type === 'verbal' || a.type === 'action')))
+      .map(c => ({ text: c.text, category: c.category || '✨ Genel', type: c.type }));
+    const deck = shuffle(pool).slice(0, D.cardCount > 0 ? Math.min(D.cardCount, pool.length) : pool.length);
+    startCard(0, deck);
+  });
+}
+function startCard(i, deck) {
+  const d = deck || D.deck, card = d[i], speakers = {};
+  units(D).forEach(u => { speakers[u.id] = pickSpeaker(D, u.id, i); });
+  ref.update({ status: 'playing', deck: d, cardIndex: i, phase: 'answer', cardMode: 'spoken',
+    speakers, answers: null, votes: null, order: null, voted: null, winners: null, tally: null });
+}
+function mainAction() {
+  if (!D || D.status !== 'playing') return;
+  if (D.phase === 'answer') ref.update(useVote() ? { phase: 'vote', votes: null } : { phase: 'judge' });
+  else if (D.phase === 'vote') {
+    const { done, total } = voteStats();
+    if (total > 0 && done < total) askConfirm(`${total - done} kişi henüz oy vermedi. Yine de bitirilsin mi?`, finishVote, 'Evet, bitir', 'Bekle');
+    else finishVote();
+  }
+  else if (D.phase === 'result') { D.cardIndex + 1 >= D.deck.length ? endGame(false) : startCard(D.cardIndex + 1); }
+}
+// Oy sayımı: sahne alan taraflardan en çok oy alan 1 puan alır (eşitlikte hepsi, hiç oy yoksa puan yok); kendi birimine oy geçersiz
+function finishVote() {
+  if (!D || D.phase !== 'vote') return;
+  const valid = new Set(performers().map(u => u.id)), tally = {};
+  entries(D.votes).forEach(([voter, uid]) => {
+    if (!valid.has(uid) || !unitOf(D, voter) || unitOf(D, voter) === uid) return;
+    tally[uid] = (tally[uid] || 0) + 1;
+  });
+  const max = Math.max(0, ...Object.values(tally)), winners = {};
+  if (max > 0) Object.keys(tally).forEach(uid => { if (tally[uid] === max) { winners[uid] = true; ref.child('scores/' + uid).transaction(v => (v || 0) + 1); } });
+  ref.update({ phase: 'result', voted: true, tally: Object.keys(tally).length ? tally : null, winners: Object.keys(winners).length ? winners : null });
+}
+// Sesli mod: sunucu kazananı seçer
+function award(uid) {
+  if (!D || D.phase !== 'judge') return;
+  if (uid !== 'none') { if (!(D.speakers || {})[uid]) return; ref.child('scores/' + uid).transaction(v => (v || 0) + 1); }
+  ref.update({ phase: 'result', winners: uid === 'none' ? null : { [uid]: true } });
+}
+function endGame(confirmFirst) {
+  if (confirmFirst) { askConfirm('Oyun bitirilsin mi?', () => ref.update({ status: 'ended' }), 'Evet, bitir', 'Devam et'); return; }
+  ref.update({ status: 'ended' });
+}
+
+// ───────── TV kumandası: odak, ok tuşları, onay penceresi, Geri ─────────
+let modalYes = null, modalPrevFocus = null, lobbyStartEnabled = false;
+function modalOpen() { return $('modal').classList.contains('show'); }
+function askConfirm(msg, onYes, yesLabel, noLabel) {
+  $('modal-msg').textContent = msg; $('modal-yes').textContent = yesLabel || 'Evet'; $('modal-no').textContent = noLabel || 'Vazgeç';
+  modalYes = onYes; modalPrevFocus = document.activeElement;
+  $('modal').classList.add('show'); $('modal-no').focus();
+}
+function closeModal() {
+  $('modal').classList.remove('show'); modalYes = null;
+  if (modalPrevFocus && document.contains(modalPrevFocus) && modalPrevFocus.getClientRects().length) modalPrevFocus.focus(); else focusDefault();
+}
+$('modal-yes').onclick = () => { const f = modalYes; closeModal(); if (f) f(); };
+$('modal-no').onclick = closeModal;
+
+function goHome() { location.href = './'; }
+// Geri: açık oturum varsa sor (oturum açık kalır, geri dönünce "Devam et" ile sürer); yoksa ana sayfaya
+function onBack() {
+  if (ref && D && D.status !== 'ended') askConfirm('Ana sayfaya dönülsün mü? Oturum açık kalır, geri gelip devam edebilirsin.', goHome, 'Ana sayfaya dön', 'Devam et');
+  else goHome();
+}
+history.pushState({ ysTv: 1 }, '');
+window.addEventListener('popstate', () => {
+  if (ref && D && D.status !== 'ended') { history.pushState({ ysTv: 1 }, ''); if (!modalOpen()) onBack(); }
+  else history.back();
+});
+
+function focusables(root) { return [...root.querySelectorAll('button,a[href],input,[tabindex="0"]')].filter(el => !el.disabled && el.getClientRects().length > 0); }
+function focusDefault() {
+  if (modalOpen()) return;
+  const scr = document.querySelector('.screen.active'); if (!scr) return;
+  if (scr.id === 's-game') { gameFocus(); return; }
+  const a = document.activeElement;
+  if (a && a !== document.body && scr.contains(a) && !a.disabled && a.getClientRects().length) return;
+  let el = $({ 's-setup': 'btn-create', 's-lobby': 'btn-start', 's-end': 'btn-newgame' }[scr.id]);
+  if (!el || el.disabled || !el.getClientRects().length) el = focusables(scr)[0];
+  if (el) el.focus();
+}
+// Oyun ekranında odak kaybolduysa mantıklı yere koy (sunucu sırasıyla ilerleyebilsin)
+function gameFocus() {
+  if (modalOpen()) return;
+  const a = document.activeElement;
+  if (a && a !== document.body && a.getClientRects().length && $('s-game').contains(a)) return;
+  const first = D && D.phase === 'judge' ? $('g-tiles').querySelector('.tile[tabindex="0"]') : null;
+  const main = $('btn-main'), none = $('btn-none');
+  const el = first || (main.style.display !== 'none' ? main : null) || (none.style.display !== 'none' ? none : null);
+  if (el) el.focus();
+}
+function lobbyFocus() {
+  const en = !$('btn-start').disabled;
+  if (en && !lobbyStartEnabled && (document.activeElement === $('btn-cancel') || document.activeElement === document.body)) $('btn-start').focus();
+  lobbyStartEnabled = en;
+  focusDefault();
+}
+function moveFocus(dir, from) {
+  const root = modalOpen() ? $('modal') : document.querySelector('.screen.active');
+  const list = focusables(root), cur = from || document.activeElement;
+  if (!list.length) return;
+  if (!list.includes(cur)) { list[0].focus(); return; }
+  const c = cur.getBoundingClientRect(), cx = c.left + c.width / 2, cy = c.top + c.height / 2;
+  let best = null, bs = Infinity;
+  list.forEach(el => {
+    if (el === cur) return;
+    const r = el.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
+    const prim = dir === 'right' ? dx : dir === 'left' ? -dx : dir === 'down' ? dy : -dy;
+    const orth = (dir === 'left' || dir === 'right') ? Math.abs(dy) : Math.abs(dx);
+    if (prim < 4) return;
+    const sc = prim + orth * 2;
+    if (sc < bs) { bs = sc; best = el; }
+  });
+  if (best) { best.focus(); best.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+}
+const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' };
+document.addEventListener('keydown', e => {
+  const t = e.target, isText = /^(input|textarea)$/i.test(t.tagName) && t.type !== 'checkbox';
+  if (ARROWS[e.key]) {
+    if (isText && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) return; // imleç
+    e.preventDefault(); moveFocus(ARROWS[e.key]); return;
+  }
+  if (isText) { if (e.key === 'Enter') { e.preventDefault(); t.blur(); moveFocus('down', t); } return; }
+  if (e.key === 'Escape' || e.key === 'Backspace' || e.key === 'GoBack' || e.key === 'BrowserBack') {
+    e.preventDefault(); if (modalOpen()) closeModal(); else onBack(); return;
+  }
+  if (e.key === 'Enter' || e.code === 'Space') {
+    if (modalOpen() || t.tagName === 'BUTTON') return; // düğmeler kendi tıklamasını yapar
+    if (t.tagName === 'INPUT' && t.type === 'checkbox') { if (e.key === 'Enter') { e.preventDefault(); t.click(); } return; }
+    if (t.getAttribute && t.getAttribute('tabindex') === '0') { e.preventDefault(); t.click(); return; }
+    if (D && D.status === 'playing' && D.phase !== 'judge') { e.preventDefault(); mainAction(); }
+    return;
+  }
+  if (D && D.status === 'playing' && D.phase === 'judge' && !modalOpen()) {
+    if (e.key === '0') award('none');
+    const n = parseInt(e.key, 10), us = units(D);
+    if (n >= 1 && n <= us.length) award(us[n - 1].id);
+  }
+});
+
+// Kart / soru gönderme sayfasının QR'ı (yazı telefondan yapılır)
+function renderSubmitQr() {
+  const url = submitUrl(), wrap = $('submit-qr-wrap');
+  if (!url) { wrap.style.display = 'none'; return; }
+  try { const qr = qrcode(0, 'M'); qr.addData(url); qr.make(); $('submit-qr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true }); $('submit-url').textContent = url; wrap.style.display = 'flex'; }
+  catch (e) { wrap.style.display = 'none'; }
+}
+
+// ───────── Başlangıç ─────────
+try { db = initDb(); renderSetup(); checkResume(); }
+catch (e) { toast('Firebase yüklenemedi: ' + e.message); renderSetup(); }
+renderSubmitQr();
+focusDefault();
+</script>
+</body>
+</html>

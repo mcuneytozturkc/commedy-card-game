@@ -8,7 +8,7 @@ import OkNok from './components/OkNok.jsx'
 import SplashScreen from './components/SplashScreen.jsx'
 import { refreshContent } from './content.js'
 
-// Splash yalnızca oturumun ilk açılışında gösterilir (tv.html'den Geri ile dönünce tekrar çıkmaz)
+// Splash yalnızca oturumun ilk açılışında gösterilir (komedi.html'den Geri ile dönünce tekrar çıkmaz)
 function splashSeen() {
   try { return sessionStorage.getItem('ys_splash') === '1' } catch { return false }
 }

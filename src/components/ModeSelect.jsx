@@ -3,7 +3,7 @@ import Navbar from './Navbar.jsx'
 import { GAMES } from '../data/games.js'
 import { openPage } from '../publicUrl.js'
 
-// Komedi Kartları: telefonlu (tv.html) ya da tek ekran (eski CardGame) modu seç
+// Komedi Kartları: telefonlu (komedi.html) ya da tek ekran (eski CardGame) modu seç
 export default function ModeSelect({ gameId, onSingleScreen, onHome }) {
   const refs = useRef([])
   const game = GAMES[gameId]
@@ -18,7 +18,7 @@ export default function ModeSelect({ gameId, onSingleScreen, onHome }) {
       emoji: '📱',
       name: 'Telefonlarla Oyna',
       desc: 'TV sunucu olur, en fazla 6 oyuncu QR kodla telefonundan katılır. Sahneye çıkan canlı söyler/oynar; kazananı sunucu seçer ya da oyuncular oylar.',
-      handler: () => { try { sessionStorage.setItem('ys_from_home', '1') } catch { /* yoksay */ } openPage('tv.html') },
+      handler: () => { try { sessionStorage.setItem('ys_from_home', '1') } catch { /* yoksay */ } openPage('komedi.html') },
       borderColor: '#a855f744',
     },
     {

@@ -1,4 +1,4 @@
-// ═══ Ortak: Firebase ayarı + yardımcılar (tv.html ve play.html kullanır) ═══
+// ═══ Ortak: Firebase ayarı + yardımcılar (komedi.html ve play.html kullanır) ═══
 const FB_CONFIG = {
   apiKey: "AIzaSyA9M8Worx1TJAEnBimNYzMIYNRlj5WDZwg",
   authDomain: "commedy-card-game.firebaseapp.com",
