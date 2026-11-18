@@ -112,6 +112,17 @@ function loadApprovedCards(db) {
     .then(s => entries(s.val()).map(([id, c]) => ({ ...c, id })))
     .catch(() => []);
 }
+// Oyun içeriği: Firebase content/comedy (admin yönetir). Okunamazsa cards.js'teki gömülü liste kullanılır.
+let CONTENT_CARDS = null;
+function setContentCards(game, list) { CONTENT_CARDS = CONTENT_CARDS || {}; CONTENT_CARDS[game] = list; }
+function loadContentCards(db) {
+  return db.ref('content/comedy').once('value')
+    .then(s => { const v = entries(s.val()).sort((a, b) => (a[0] < b[0] ? -1 : 1)).map(e => e[1]).filter(c => c && c.text); if (v.length) setContentCards('comedy', v); })
+    .catch(() => {});
+}
+function contentCards(game) {
+  return (CONTENT_CARDS && CONTENT_CARDS[game]) || (typeof BUILTIN_CARDS !== 'undefined' && BUILTIN_CARDS[game]) || [];
+}
 function builtinPool(game) {
-  return ((typeof BUILTIN_CARDS !== 'undefined' && BUILTIN_CARDS[game]) || []).map((c, i) => ({ text: c.text, source: 'yerleşik', game, id: 'b' + i }));
+  return contentCards(game).map((c, i) => ({ text: c.text, source: 'yerleşik', game, id: 'b' + i }));
 }

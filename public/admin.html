@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Yusuf Show — Admin Onay</title>
+<title>Yusuf Show — Admin</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root { --bg:#0a0a14; --surface:#13132a; --surface2:#1e1e3a; --border:#2e2e55; --text:#eeeeff; --muted:#8a8ac0; --accent:#7c3aed; --accent2:#a855f7; --gold:#f59e0b; --green:#22c55e; --red:#ef4444; }
@@ -73,12 +73,14 @@
     <div class="tabs">
       <button class="tab sel" id="tab-pending" onclick="setTab('pending')">⏳ Bekleyenler (<span id="n-pending">0</span>)</button>
       <button class="tab" id="tab-approved" onclick="setTab('approved')">✅ Onaylananlar (<span id="n-approved">0</span>)</button>
+      <button class="tab" id="tab-content" onclick="setTab('content')">⚙️ İçerik</button>
       <select id="f-game" onchange="render()"></select>
       <input type="text" id="f-q" placeholder="Ara…" oninput="render()">
       <span class="grow" style="flex:1"></span>
       <button class="btn ok" id="btn-bulk" onclick="approveClean()">Benzeri olmayanların hepsini onayla</button>
     </div>
     <div id="list"></div>
+    <div id="content-panel" class="hidden"></div>
   </div>
 </div>
 
@@ -111,13 +113,21 @@ function logout() { firebase.auth().signOut(); }
 
 function startListening() {
   if (started) return; started = true;
+  loadContentCards(db).then(render);
   const fail = (what) => (err) => { $('perm').classList.remove('hidden');
     $('perm').innerHTML = `⚠️ <b>${what}</b> okunamadı (${esc(err.code || err.message)}). Bu hesabın UID'si Firebase kurallarındaki <code>ADMIN_UID</code> ile aynı olmalı. UID: <code>${esc(user.uid)}</code> — kurulum adımları için <b>ADMIN-KURULUM.md</b> dosyasına bak.`; };
   db.ref('cards/pending').on('value', s => { pending = entries(s.val()).map(([id, c]) => ({ ...c, id })).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); $('perm').classList.add('hidden'); render(); }, fail('Bekleyen kartlar'));
   db.ref('cards/approved').on('value', s => { approved = entries(s.val()).map(([id, c]) => ({ ...c, id })).sort((a, b) => (b.approvedAt || 0) - (a.approvedAt || 0)); render(); }, fail('Onaylı kartlar'));
 }
 
-function setTab(t) { tab = t; $('tab-pending').classList.toggle('sel', t === 'pending'); $('tab-approved').classList.toggle('sel', t === 'approved'); $('btn-bulk').classList.toggle('hidden', t !== 'pending'); render(); }
+function setTab(t) {
+  tab = t;
+  ['pending', 'approved', 'content'].forEach(x => $('tab-' + x).classList.toggle('sel', t === x));
+  $('btn-bulk').classList.toggle('hidden', t !== 'pending');
+  $('f-game').classList.toggle('hidden', t === 'content'); $('f-q').classList.toggle('hidden', t === 'content');
+  $('list').classList.toggle('hidden', t === 'content'); $('content-panel').classList.toggle('hidden', t !== 'content');
+  if (t === 'content') ccOpen(cc.key); else render();
+}
 
 // Bir bekleyen kartın karşılaştırma havuzu: yerleşik + onaylı + diğer bekleyenler (aynı oyun)
 function analyze(item) {
@@ -133,6 +143,7 @@ function fmt(ts) { return ts ? new Date(ts).toLocaleString('tr-TR', { dateStyle:
 function gameBadge(g) { const s = SUBMIT_GAMES[g]; return `<span class="badge">${s ? s.emoji + ' ' + esc(s.name) : esc(g)}</span>`; }
 
 function render() {
+  if (tab === 'content') return;
   $('n-pending').textContent = pending.length; $('n-approved').textContent = approved.length;
   const g = $('f-game').value, q = normText($('f-q').value);
   const src = (tab === 'pending' ? pending : approved).filter(c => (!g || c.game === g) && (!q || normText(c.text + ' ' + (c.answer || '') + ' ' + (c.category || '')).includes(q)));
@@ -198,6 +209,110 @@ function approveClean() {
   pending.filter(c => !g || c.game === g).forEach(c => { if (!analyze(c).matches.length) { upd['cards/approved/' + c.id] = approveRecord(c); upd['cards/pending/' + c.id] = null; n++; } });
   if (!n) return alert('Benzeri olmayan bekleyen kart yok.');
   if (confirm(n + ' kart onaylansın mı?')) db.ref().update(upd);
+}
+
+// ───────── ⚙️ İçerik yönetimi (Firebase content/…) ─────────
+// Uygulama bu verileri açılışta okur: burada yapılan değişiklik TV/telefon uygulamasını güncellemeden geçerli olur.
+const COLLS = {
+  comedy: { label: '😂 Komedi kartları', path: 'content/comedy', fields: [['text', 'Kart metni', 'area'], ['category', 'Kategori', 'text'], ['type', 'Tür', 'select:verbal,action,sound,theatre']], title: r => r.text, sub: r => `${r.category || ''} · ${r.type || ''}` },
+  oknok: { label: '💑 Ok mu Nok mu soruları', path: 'content/oknok/questions', scalar: true, fields: [['text', 'Soru', 'area']], title: r => r.text, sub: () => '' },
+  tox: { label: '☠️ Ok mu Nok mu sonuç metinleri', path: 'content/oknok/toxicity', fields: [['max', 'En çok Nok sayısı (0–10)', 'number'], ['emoji', 'Emoji', 'text'], ['title', 'Başlık', 'text'], ['msg', 'Mesaj', 'area']], title: r => `${r.emoji || ''} ${r.title || ''} (≤ ${r.max})`, sub: r => r.msg || '', sort: (a, b) => (a[1].max || 0) - (b[1].max || 0) },
+  big: { label: '🏷️ Logo — büyük markalar', path: 'content/logos/big', fields: [['name', 'Marka adı', 'text'], ['domain', 'Alan adı (örn. nike.com)', 'text']], title: r => r.name, sub: r => r.domain },
+  small: { label: '🏷️ Logo — küçük markalar', path: 'content/logos/small', fields: [['name', 'Marka adı', 'text'], ['domain', 'Alan adı (örn. nike.com)', 'text']], title: r => r.name, sub: r => r.domain },
+};
+let cc = { key: 'comedy', ref: null, cb: null, data: {}, editId: null, draft: {}, built: false };
+
+function ccFieldHtml(f, val, onin, idAttr) {
+  const [k, label, type] = f, v = val == null ? '' : val;
+  if (type === 'area') return `<textarea ${idAttr} placeholder="${esc(label)}" oninput="${onin}">${esc(v)}</textarea>`;
+  if (type.startsWith('select:')) return `<select ${idAttr} onchange="${onin}">${type.slice(7).split(',').map(o => `<option value="${o}" ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select>`;
+  return `<input type="${type === 'number' ? 'number' : 'text'}" ${idAttr} value="${esc(v)}" placeholder="${esc(label)}" oninput="${onin}">`;
+}
+function ccBuild() {
+  $('content-panel').innerHTML = `
+    <div class="card" style="margin-bottom:1rem">
+      <div class="tabs" id="cc-tabs">${Object.keys(COLLS).map(k => `<button class="tab" id="cc-tab-${k}" onclick="ccOpen('${k}')">${COLLS[k].label}</button>`).join('')}</div>
+      <div class="meta" id="cc-info"></div>
+      <div id="cc-msg" class="err"></div>
+      <div id="cc-add"></div>
+      <div class="tabs" style="margin-top:.8rem"><input type="text" id="cc-q" placeholder="Ara…" oninput="ccList()" style="flex:1"><button class="btn ghost" onclick="ccSeed()">⬆️ Yerleşik içeriği Firebase'e yükle</button></div>
+    </div>
+    <div id="cc-list"></div>`;
+  cc.built = true;
+}
+function ccOpen(key) {
+  if (!cc.built) ccBuild();
+  if (cc.ref) cc.ref.off('value', cc.cb);
+  cc.key = key; cc.editId = null; cc.data = {};
+  Object.keys(COLLS).forEach(k => $('cc-tab-' + k).classList.toggle('sel', k === key));
+  const c = COLLS[key];
+  $('cc-add').innerHTML = `<div class="warnbox" style="margin:0"><b>Yeni ekle</b><div style="margin-top:.6rem">${c.fields.map(f => ccFieldHtml(f, '', '', `id="cc-new-${f[0]}"`)).join('')}</div><button class="btn ok" onclick="ccAdd()">➕ Ekle</button></div>`;
+  $('cc-list').innerHTML = '<div class="empty">Yükleniyor…</div>';
+  cc.ref = db.ref(c.path);
+  cc.cb = s => { cc.data = s.val() || {}; if (key === 'comedy') setContentCards('comedy', Object.keys(cc.data).sort().map(k => cc.data[k])); $('cc-msg').textContent = ''; ccList(); };
+  cc.ref.on('value', cc.cb, e => { $('cc-msg').textContent = 'Okunamadı: ' + (e.code || e.message); });
+}
+function ccRecs() {
+  const c = COLLS[cc.key];
+  let arr = Object.keys(cc.data).sort().map(id => [id, c.scalar ? { text: cc.data[id] } : cc.data[id]]).filter(e => e[1]);
+  if (c.sort) arr = arr.sort(c.sort);
+  return arr;
+}
+function ccList() {
+  const c = COLLS[cc.key], q = normText($('cc-q').value), all = ccRecs();
+  const rows = all.filter(([, r]) => !q || normText(c.fields.map(f => r[f[0]]).join(' ')).includes(q));
+  $('cc-info').innerHTML = `<span class="badge">${all.length} kayıt</span>${q ? `<span class="badge">${rows.length} sonuç</span>` : ''}${all.length ? '' : '<span class="badge gold">Boş — uygulama gömülü yedek listeyi kullanıyor. "Yerleşik içeriği Firebase\'e yükle"ye bas.</span>'}`;
+  if (!rows.length) { $('cc-list').innerHTML = '<div class="empty">Kayıt yok.</div>'; return; }
+  $('cc-list').innerHTML = rows.slice(0, 150).map(([id, r]) => cc.editId === id
+    ? `<div class="item"><div class="meta"><span class="badge">düzenleniyor</span></div>${c.fields.map(f => ccFieldHtml(f, cc.draft[f[0]], `cc.draft['${f[0]}']=this.value`, '')).join('')}<div class="actions"><button class="btn" onclick="ccSave('${id}')">Kaydet</button><button class="btn ghost" onclick="cc.editId=null;ccList()">Vazgeç</button></div></div>`
+    : `<div class="item"><div class="txt">${esc(c.title(r))}</div><div class="meta" style="margin:.3rem 0 0">${esc(c.sub(r))}</div><div class="actions"><button class="btn ghost" onclick="ccEdit('${id}')">✏️ Düzenle</button><button class="btn no" onclick="ccDel('${id}')">🗑️ Sil</button></div></div>`).join('')
+    + (rows.length > 150 ? `<div class="empty">İlk 150 kayıt gösteriliyor — aramayı daralt.</div>` : '');
+}
+function ccClean(rec) {
+  const out = {};
+  COLLS[cc.key].fields.forEach(([k, , type]) => { let v = rec[k]; v = type === 'number' ? Number(v) : String(v == null ? '' : v).trim().replace(/\s+/g, ' '); out[k] = v; });
+  if (out.domain !== undefined) out.domain = out.domain.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0].toLowerCase();
+  return out;
+}
+function ccValid(rec) {
+  const key = cc.key;
+  if (key === 'tox') return !(isNaN(rec.max) || rec.max < 0 || rec.max > 10 || !rec.title) || 'En çok Nok sayısı 0–10 arası olmalı, başlık boş olamaz.';
+  if (key === 'big' || key === 'small') return !(!rec.name || !/^[a-z0-9.-]+\.[a-z]{2,}$/.test(rec.domain)) || 'Marka adı ve geçerli alan adı (örn. nike.com) gerekli.';
+  return rec.text && rec.text.length >= 8 ? true : 'Metin en az 8 karakter olmalı.';
+}
+function ccSimilar(rec, ownId) {
+  if (cc.key !== 'comedy' && cc.key !== 'oknok') return '';
+  const pool = ccRecs().filter(([id]) => id !== ownId).map(([id, r]) => ({ text: r.text, source: 'içerik', id }));
+  const m = findSimilar(rec.text, pool, { threshold: SIM_WARN, limit: 3 });
+  return m.length ? '\n\nBenzer kayıtlar:\n' + m.map(r => '• ' + r.text).join('\n') : '';
+}
+function ccDup(rec, ownId) {
+  if (cc.key !== 'big' && cc.key !== 'small') return false;
+  return ccRecs().some(([id, r]) => id !== ownId && r.domain === rec.domain);
+}
+function ccAdd() {
+  const c = COLLS[cc.key], raw = {}; c.fields.forEach(f => raw[f[0]] = $('cc-new-' + f[0]).value);
+  const rec = ccClean(raw), ok = ccValid(rec); if (ok !== true) return alert(ok);
+  if (ccDup(rec)) return alert('Bu alan adı bu listede zaten var.');
+  const sim = ccSimilar(rec); if (sim && !confirm('Benzer bir kayıt var, yine de eklensin mi?' + sim)) return;
+  db.ref(c.path).push(c.scalar ? rec.text : rec).then(() => { c.fields.forEach(f => { $('cc-new-' + f[0]).value = ''; }); }).catch(e => alert('Eklenemedi: ' + (e.code || e.message)));
+}
+function ccEdit(id) { const r = ccRecs().find(e => e[0] === id)[1]; cc.draft = { ...r }; cc.editId = id; ccList(); }
+function ccSave(id) {
+  const c = COLLS[cc.key], rec = ccClean(cc.draft), ok = ccValid(rec); if (ok !== true) return alert(ok);
+  if (ccDup(rec, id)) return alert('Bu alan adı bu listede zaten var.');
+  const sim = ccSimilar(rec, id); if (sim && !confirm('Benzer bir kayıt var, yine de kaydedilsin mi?' + sim)) return;
+  db.ref(c.path + '/' + id).set(c.scalar ? rec.text : rec).then(() => { cc.editId = null; }).catch(e => alert('Kaydedilemedi: ' + (e.code || e.message)));
+}
+function ccDel(id) { if (confirm('Bu kayıt oyundan silinsin mi?')) db.ref(COLLS[cc.key].path + '/' + id).remove().catch(e => alert('Silinemedi: ' + (e.code || e.message))); }
+async function ccSeed() {
+  try {
+    const seed = await (await fetch('content-seed.json', { cache: 'no-store' })).json();
+    const exists = (await db.ref('content').once('value')).exists();
+    if (exists && !confirm('Firebase\'de zaten içerik var. Yerleşik içerik bunun ÜZERİNE YAZILIR; sonradan eklediğin/düzenlediğin kayıtlar kaybolur. Devam edilsin mi?')) return;
+    await db.ref('content').set(seed);
+    $('cc-msg').style.color = '#86efac'; $('cc-msg').textContent = 'Yerleşik içerik Firebase\'e yüklendi ✅';
+  } catch (e) { $('cc-msg').style.color = ''; $('cc-msg').textContent = 'Yüklenemedi: ' + (e.code || e.message) + ' (içerik kuralları yayınlandı mı? ADMIN-KURULUM.md)'; }
 }
 
 boot();

@@ -419,8 +419,8 @@ function startGame() {
   $('btn-start').disabled = true;
   // Havuz: yerleşik komedi kartları + (isteniyorsa) admin onaylı kullanıcı kartları. Seçilen kartlar oturuma yazılır → telefonlar kendi listesine bağlı kalmaz.
   const extra = D.includeApproved === false ? Promise.resolve([]) : loadApprovedCards(db);
-  extra.then(ap => {
-    const pool = BUILTIN_CARDS.comedy.concat(ap.filter(a => a.game === 'comedy' && (a.type === 'verbal' || a.type === 'action')))
+  loadContentCards(db).then(() => extra).then(ap => {
+    const pool = contentCards('comedy').concat(ap.filter(a => a.game === 'comedy' && (a.type === 'verbal' || a.type === 'action')))
       .map(c => ({ text: c.text, category: c.category || '✨ Genel', type: c.type }));
     const deck = shuffle(pool).slice(0, D.cardCount > 0 ? Math.min(D.cardCount, pool.length) : pool.length);
     startCard(0, deck);

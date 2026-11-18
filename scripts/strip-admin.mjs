@@ -4,6 +4,7 @@ import { existsSync, rmSync } from 'node:fs'
 
 const targets = [
   'android/app/src/main/assets/public/admin.html',
+  'android/app/src/main/assets/public/content-seed.json',
 ]
 for (const f of targets) {
   if (existsSync(f)) {

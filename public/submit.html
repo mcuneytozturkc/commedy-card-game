@@ -96,7 +96,7 @@ const $ = id => document.getElementById(id);
 
 function initForm() {
   $('game').innerHTML = Object.keys(SUBMIT_GAMES).map(k => `<option value="${k}">${SUBMIT_GAMES[k].emoji} ${SUBMIT_GAMES[k].name}</option>`).join('');
-  try { db = initDb(); loadApprovedCards(db).then(a => { approved = a; onInput(); }); } catch (e) { showMsg('err', 'Firebase yüklenemedi: ' + e.message); }
+  try { db = initDb(); loadApprovedCards(db).then(a => { approved = a; onInput(); }); loadContentCards(db).then(() => onGameChange()); } catch (e) { showMsg('err', 'Firebase yüklenemedi: ' + e.message); }
   try { $('author').value = localStorage.getItem('cc_author') || ''; } catch (e) {}
   const g = new URLSearchParams(location.search).get('game'); if (g && SUBMIT_GAMES[g]) $('game').value = g;
   onGameChange();
@@ -108,7 +108,7 @@ function onGameChange() {
   $('answer-row').classList.toggle('hidden', !isRiddle);
   $('text-label').innerHTML = (isRiddle ? 'Soru / bilmece' : 'Kart metni') + ' <small>(8–200 karakter)</small>';
   $('text').placeholder = SUBMIT_GAMES[g].hint;
-  const cats = [...new Set(((BUILTIN_CARDS[g]) || []).map(c => c.category))];
+  const cats = [...new Set(contentCards(g).map(c => c.category))];
   $('cats').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
   onInput();
 }

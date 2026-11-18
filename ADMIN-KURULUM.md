@@ -19,3 +19,16 @@ Akış: gönderilen kart `cards/pending` altına düşer → admin onaylarsa `ca
 ## Notlar
 - "Bilmece / Soru" türü kayıt altına alınır ama şu an oynanan bir bilmece modu yok; TV yalnızca **Komedi** kartlarını havuza katıyor. Diğer türler (Pantomim, Mini Sahne, Taklit, Bilmece) onaylı listede bekler.
 - İstemci tarafı hız sınırı (8 sn arayla, saatte 20 kart) ve bot tuzağı var; asıl koruma admin onayıdır. Kurallar ayrıca alan uzunluklarını ve izin verilen oyun türlerini doğrular.
+
+## ⚙️ Oyun içeriği Firebase'de (uygulamayı güncellemeden değiştir)
+Komedi kartları, Ok mu Nok mu soruları ve sonuç metinleri, Logo Bilmece marka listeleri (büyük/küçük) Firebase'de `content/` altında durur.
+Uygulama (TV, telefon, web) bunları açılışta okur; okunamazsa son önbelleği, o da yoksa uygulamaya gömülü yedek listeyi kullanır.
+Yeni özellik değilse (yalnızca içerik) APK yeniden yapmaya / push etmeye gerek yoktur.
+
+**Bir kerelik kurulum**
+1. `database.rules.json` içindeki yeni `"content"` bloğunu Firebase → Realtime Database → Kurallar'a ekle (`ADMIN_UID` yerine kendi UID'n) ve Yayınla.
+2. `admin.html` → giriş → **⚙️ İçerik** sekmesi → **"Yerleşik içeriği Firebase'e yükle"**. (Gömülü listeyi `content/` altına yazar; sonradan eklediklerini silmemesi için bunu yalnızca ilk kez yap.)
+
+**Günlük kullanım:** admin → ⚙️ İçerik → listeyi seç → ekle / düzenle / sil. Değişiklik anında geçerlidir (uygulama bir sonraki açılışta ya da oyuna girişte yeniler).
+- Logo markaları için alan adı gerekir (örn. `nike.com`); simgesi Brandfetch'te bulunmayan markalar oyunda otomatik elenir.
+- Gömülü yedek liste (`src/data/*.js`, `public/cards.js`) güncel tutulmak zorunda değil; yalnızca internet/Firebase yokken devreye girer. Yeniden üretmek için: `node scripts/gen-seed.mjs`.

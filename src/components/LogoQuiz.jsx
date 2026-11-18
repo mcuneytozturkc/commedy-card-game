@@ -4,7 +4,7 @@ import Navbar from './Navbar.jsx'
 import QrCode from './QrCode.jsx'
 import { logoJoinUrl } from '../publicUrl.js'
 import { db } from '../firebase.js'
-import { LQ_LOGOS } from '../data/logos.js'
+import { getContent, refreshContent } from '../content.js'
 import LogoImg, { pickForTier, brandfetchId } from './LogoImg.jsx'
 import { shuffle } from '../confetti.js'
 import SplashScreen from './SplashScreen.jsx'
@@ -43,6 +43,8 @@ export default function LogoQuiz({ onHome, joinCode }) {
   const [guessInput,    setGuessInput]    = useState('')
   const unsubRef    = useRef(null)
   const sessionRef  = useRef(null)
+
+  useEffect(() => { refreshContent() }, [])
 
   // Online/offline listener
   useEffect(() => {
@@ -122,7 +124,7 @@ export default function LogoQuiz({ onHome, joinCode }) {
   async function loadTier(d) {
     if (!brandfetchId()) { setErr('Brandfetch Client ID girilmemiş (public/config.js).'); return [] }
     setErr(''); setLoadingLogos(true)
-    const list = await pickForTier(LQ_LOGOS, d)
+    const list = await pickForTier(getContent().logos, d)
     setLoadingLogos(false)
     if (!list.length) setErr('Logolar yüklenemedi — internet bağlantısını kontrol et.')
     return list

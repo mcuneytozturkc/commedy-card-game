@@ -3,7 +3,7 @@ import { ref, set, update, get, onValue } from 'firebase/database'
 import Navbar from './Navbar.jsx'
 import QrCode from './QrCode.jsx'
 import { db } from '../firebase.js'
-import { OKNOK_QUESTIONS, getToxicity } from '../data/oknok.js'
+import { getContent, getToxicity, refreshContent } from '../content.js'
 import { shuffle, confetti } from '../confetti.js'
 import { oknokJoinUrl } from '../publicUrl.js'
 import SplashScreen from './SplashScreen.jsx'
@@ -45,6 +45,8 @@ export default function OkNok({ onHome, joinCode }) {
     }
   }, [])
 
+  useEffect(() => { refreshContent() }, [])
+
   const stage = data?.stage
   useEffect(() => {
     const t = setTimeout(() => mainRef.current?.focus(), 80)
@@ -81,7 +83,7 @@ export default function OkNok({ onHome, joinCode }) {
     return { cid, who, rest: Object.keys(rest).length ? rest : null }
   }
   function resetRound() {
-    setQuestions(shuffle([...OKNOK_QUESTIONS]).slice(0, ROUND_COUNT))
+    setQuestions(shuffle([...getContent().oknokQuestions]).slice(0, ROUND_COUNT))
     setQIdx(0); setAnswers([])
   }
   function startGame() {

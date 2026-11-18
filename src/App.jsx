@@ -6,6 +6,7 @@ import SubmitQr from './components/SubmitQr.jsx'
 import LogoQuiz from './components/LogoQuiz.jsx'
 import OkNok from './components/OkNok.jsx'
 import SplashScreen from './components/SplashScreen.jsx'
+import { refreshContent } from './content.js'
 
 // Splash yalnızca oturumun ilk açılışında gösterilir (tv.html'den Geri ile dönünce tekrar çıkmaz)
 function splashSeen() {
@@ -31,6 +32,9 @@ export default function App() {
     } catch { /* yoksay */ }
     return { name: 'home' }
   })
+
+  // Oyun içeriğini (kartlar, sorular, logolar) Firebase'den yenile; olmazsa önbellek/gömülü liste kullanılır
+  useEffect(() => { refreshContent() }, [])
 
   // Android TV Geri tuşu = tarayıcı geçmişi: alt ekrandayken Geri ana sayfaya döner (uygulamayı kapatmaz)
   useEffect(() => {

@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Navbar from './Navbar.jsx'
 import { GAMES, TEAM_COLORS, TYPE_CONFIG } from '../data/games.js'
+import { getContent, refreshContent } from '../content.js'
 import { confetti, shuffle } from '../confetti.js'
 import SplashScreen from './SplashScreen.jsx'
 
@@ -22,6 +23,7 @@ function PhaseBar({ phase }) {
 
 export default function CardGame({ gameId, onHome }) {
   const game = GAMES[gameId]
+  useEffect(() => { refreshContent() }, [])
 
   const [splash, setSplash] = useState(true)
   const [stage, setStage] = useState('setup') // setup | howto | game | end
@@ -49,7 +51,7 @@ export default function CardGame({ gameId, onHome }) {
       ts.push({ name: (teamNames[i] || ('Takım ' + (i + 1))).trim() || ('Takım ' + (i + 1)), color: TEAM_COLORS[i], score: 0 })
     }
     setTeams(ts)
-    setDeck(shuffle([...game.cards]).slice(0, roundCount))
+    setDeck(shuffle([...(gameId === 'comedy' ? getContent().comedy : game.cards)]).slice(0, roundCount))
     setCardIndex(0)
     setPhase('card')
     setFlipped(false)
