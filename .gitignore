@@ -17,3 +17,4 @@ android/local.properties
 # Geçici dosyalar
 vite.config.js.timestamp-*
 .claude/settings.local.json
+.idea/
